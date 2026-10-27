@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
   <title>極簡資產記帳本 | 旗艦專業版</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -106,14 +107,14 @@
       <!-- 卡片篩選分類標籤 -->
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
         <div id="cardFilterTabs" class="inline-flex p-1 bg-stone-200/60 rounded-xl text-xs gap-1 self-start">
-          <button type="button" data-card-filter="all" class="card-filter-tab px-3 py-1 rounded-lg font-medium bg-white text-stone-900 shadow-xs transition">全部卡片</button>
+          <button type="button" data-card-filter="all" class="card-filter-tab px-3 py-1 rounded-lg font-medium bg-white text-stone-900 shadow-xs transition">全部活躍卡片</button>
           <button type="button" data-card-filter="cash" class="card-filter-tab px-3 py-1 rounded-lg font-medium text-stone-600 hover:text-stone-900 transition">現金</button>
           <button type="button" data-card-filter="bank" class="card-filter-tab px-3 py-1 rounded-lg font-medium text-stone-600 hover:text-stone-900 transition">銀行戶頭</button>
           <button type="button" data-card-filter="credit" class="card-filter-tab px-3 py-1 rounded-lg font-medium text-stone-600 hover:text-stone-900 transition">信用卡</button>
           <button type="button" data-card-filter="other" class="card-filter-tab px-3 py-1 rounded-lg font-medium text-stone-600 hover:text-stone-900 transition">電支/投資</button>
         </div>
         <div class="text-[11px] text-stone-400">
-          提示：點擊卡片可篩選明細；每張卡片右上角均提供專屬「餘額調整」
+          提示：虛線半透明卡片代表「獨立不計入淨資產」；已封存帳戶已收合至管理區中。
         </div>
       </div>
 
@@ -212,7 +213,7 @@
           <button type="button" id="btnTypeExpense" class="tx-type-btn py-1.5 font-semibold rounded-lg bg-white shadow-sm text-stone-900 transition">支出</button>
           <button type="button" id="btnTypeIncome" class="tx-type-btn py-1.5 font-semibold rounded-lg text-stone-500 hover:text-stone-900 transition">收入</button>
           <button type="button" id="btnTypeTransfer" class="tx-type-btn py-1.5 font-semibold rounded-lg text-stone-500 hover:text-stone-900 transition">轉帳</button>
-          <button type="button" id="btnTypeReceivable" class="tx-type-btn py-1.5 font-semibold rounded-lg text-stone-500 hover:text-stone-900 transition">應收(借出)</button>
+          <button type="button" id="btnTypeReceivable" class="tx-type-btn py-1.5 font-semibold rounded-lg text-stone-500 hover:text-stone-900 transition">應收(代墊)</button>
           <button type="button" id="btnTypePayable" class="tx-type-btn py-1.5 font-semibold rounded-lg text-stone-500 hover:text-stone-900 transition">應付(借入)</button>
         </div>
 
@@ -241,7 +242,7 @@
             </div>
           </div>
           <div>
-            <label class="block text-xs font-medium text-stone-600 mb-1">轉帳本金金額</label>
+            <label class="block text-xs font-medium text-stone-600 mb-1">轉帳金額</label>
             <input type="number" id="txTransferAmount" step="any" placeholder="0.00" class="w-full border border-stone-200 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-stone-900/10 font-medium">
           </div>
         </div>
@@ -281,19 +282,14 @@
         <div id="expenseFeeWrapper">
           <label class="block text-[11px] font-medium text-stone-600 mb-1 flex items-center justify-between">
             <span>附加手續費 (選填)</span>
-            <span class="text-[10px] text-stone-400">例如：跨行交易費 / 刷卡外幣手續費</span>
+            <span class="text-[10px] text-stone-400">例如：跨行交易費 / 刷卡手續費</span>
           </label>
           <input type="number" id="txExpenseFee" step="any" placeholder="0 (直接連同扣款)" class="w-full border border-stone-200 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-stone-900/10">
         </div>
 
-        <div id="inlineCustomCategoryWrapper" class="hidden">
-          <label class="block text-[11px] font-medium text-stone-600 mb-1">自訂分類名稱</label>
-          <input type="text" id="inlineCustomCategoryInput" placeholder="輸入新分類名稱並自動建立" class="w-full border border-stone-200 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-stone-900/10 bg-amber-50/50">
-        </div>
-
         <div>
           <label class="block text-xs font-medium text-stone-600 mb-1">備註說明 (選填)</label>
-          <input type="text" id="txNote" placeholder="例如：代墊高鐵車票、聚餐代付..." class="w-full border border-stone-200 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-stone-900/10">
+          <input type="text" id="txNote" placeholder="例如：代墊車票、午餐代付..." class="w-full border border-stone-200 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-stone-900/10">
         </div>
 
         <div class="flex items-center justify-between pt-1 border-t border-stone-100">
@@ -348,7 +344,7 @@
 
         <div>
           <label class="block text-xs font-medium text-stone-600 mb-1">結清備註 (選填)</label>
-          <input type="text" id="settleNote" placeholder="例如：LINE Pay 轉入還清、現金當面結清..." class="w-full border border-stone-200 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-stone-900/10">
+          <input type="text" id="settleNote" placeholder="例如：街口轉入還清、現金當面結清..." class="w-full border border-stone-200 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-stone-900/10">
         </div>
 
         <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow transition">
@@ -358,13 +354,13 @@
     </div>
   </div>
 
-  <!-- ================= 彈窗 3：帳戶管理 Modal ================= -->
+  <!-- ================= 彈窗 3：帳戶管理 Modal (含排序與封存專區) ================= -->
   <div id="accountModal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white w-full max-w-2xl rounded-2xl p-6 shadow-2xl border border-stone-100 max-h-[90vh] overflow-y-auto custom-scrollbar">
       <div class="flex justify-between items-center mb-5 border-b border-stone-100 pb-3">
         <div>
           <h3 class="text-base font-bold text-stone-900">帳戶管理與自訂排序</h3>
-          <p class="text-xs text-stone-500">可自由調整排序，或指定特定帳戶是否計入「Total Net Worth 總餘額」</p>
+          <p class="text-xs text-stone-500">支援順序微調、總額排除設定與閒置帳戶安全封存</p>
         </div>
         <button type="button" id="closeAccountModalBtn" class="p-1 text-stone-400 hover:text-stone-600 rounded-lg text-lg font-bold">✕</button>
       </div>
@@ -432,7 +428,7 @@
         <div class="p-3 bg-white rounded-lg border border-stone-200 flex items-center justify-between">
           <div>
             <div class="text-xs font-bold text-stone-800">計入首頁總淨資產 (Total Net Worth)</div>
-            <div class="text-[11px] text-stone-400">若取消勾選，此帳戶結餘將不會顯示在頂部總資產中</div>
+            <div class="text-[11px] text-stone-400">若關閉，此卡片將轉為虛線半透明，且結餘不計入頂部總資產</div>
           </div>
           <label class="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" id="accIncludeNetWorth" checked class="sr-only peer">
@@ -460,11 +456,24 @@
         </button>
       </form>
 
-      <div>
-        <div class="flex justify-between items-center mb-3">
-          <h4 class="text-xs font-bold text-stone-700 uppercase tracking-wider">現有帳戶清單</h4>
+      <!-- 現有活躍帳戶清單 -->
+      <div class="space-y-4">
+        <div class="flex justify-between items-center">
+          <h4 class="text-xs font-bold text-stone-700 uppercase tracking-wider">活躍帳戶清單 (可微調順序與封存)</h4>
         </div>
         <div id="modalAccountList" class="space-y-4"></div>
+      </div>
+
+      <!-- 封存專區 -->
+      <div class="mt-8 pt-6 border-t border-stone-200 space-y-3">
+        <div class="flex justify-between items-center">
+          <h4 class="text-xs font-bold text-stone-600 uppercase tracking-wider flex items-center gap-1.5">
+            <span>📦 已封存帳戶 (停用/剪卡)</span>
+            <span id="archivedCountBadge" class="bg-stone-200 text-stone-700 text-[10px] px-1.5 py-0.2 rounded-full font-bold">0</span>
+          </h4>
+          <span class="text-[10px] text-stone-400">封存項目不顯示於主頁且不計入總額，可隨時解封</span>
+        </div>
+        <div id="modalArchivedAccountList" class="space-y-2"></div>
       </div>
     </div>
   </div>
@@ -482,7 +491,7 @@
 
       <form id="adjustForm" class="space-y-4">
         <div>
-          <label class="block text-xs font-medium text-stone-600 mb-1">選擇調整之帳戶 / 子帳戶</label>
+          <label class="block text-xs font-medium text-stone-600 mb-1">選擇調整之帳戶</label>
           <select id="adjustAccountSelect" class="w-full border border-stone-200 rounded-xl p-2.5 text-xs bg-stone-50 outline-none"></select>
         </div>
 
@@ -678,10 +687,10 @@
       };
 
       const DEFAULT_ACCOUNTS = [
-        { id: 'acc_cash_def', name: '現金', type: 'cash', parentId: null, currency: 'TWD', initialBalance: 2000, statementDay: null, dueDay: null, creditLimit: null, includeNetWorth: true },
-        { id: 'acc_bank_ctbc', name: '中國信託', type: 'bank', parentId: null, currency: 'TWD', initialBalance: 0, statementDay: null, dueDay: null, creditLimit: null, includeNetWorth: true },
-        { id: 'acc_bank_general', name: '一般帳戶', type: 'bank', parentId: 'acc_bank_ctbc', currency: 'TWD', initialBalance: 15000, statementDay: null, dueDay: null, creditLimit: null, includeNetWorth: true },
-        { id: 'acc_card_ctbc', name: '中信信用卡', type: 'credit', parentId: null, currency: 'TWD', initialBalance: 0, statementDay: 5, dueDay: 23, creditLimit: 70000, includeNetWorth: true }
+        { id: 'acc_cash_def', name: '現金', type: 'cash', parentId: null, currency: 'TWD', initialBalance: 2000, statementDay: null, dueDay: null, creditLimit: null, includeNetWorth: true, isArchived: false },
+        { id: 'acc_bank_ctbc', name: '中國信託', type: 'bank', parentId: null, currency: 'TWD', initialBalance: 0, statementDay: null, dueDay: null, creditLimit: null, includeNetWorth: true, isArchived: false },
+        { id: 'acc_bank_general', name: '一般帳戶', type: 'bank', parentId: 'acc_bank_ctbc', currency: 'TWD', initialBalance: 15000, statementDay: null, dueDay: null, creditLimit: null, includeNetWorth: true, isArchived: false },
+        { id: 'acc_card_ctbc', name: '中信信用卡', type: 'credit', parentId: null, currency: 'TWD', initialBalance: 0, statementDay: 5, dueDay: 23, creditLimit: 70000, includeNetWorth: true, isArchived: false }
       ];
 
       let rawAccounts = null;
@@ -693,6 +702,7 @@
       let accounts = (rawAccounts && Array.isArray(rawAccounts) && rawAccounts.length > 0) ? rawAccounts : DEFAULT_ACCOUNTS;
       accounts.forEach(a => {
         if (typeof a.includeNetWorth === 'undefined') a.includeNetWorth = true;
+        if (typeof a.isArchived === 'undefined') a.isArchived = false;
       });
 
       let transactions = [];
@@ -784,6 +794,8 @@
       const creditCardSpecificFields = document.getElementById('creditCardSpecificFields');
       const accountCardsContainer = document.getElementById('accountCardsContainer');
       const modalAccountList = document.getElementById('modalAccountList');
+      const modalArchivedAccountList = document.getElementById('modalArchivedAccountList');
+      const archivedCountBadge = document.getElementById('archivedCountBadge');
       const filterAccountSelect = document.getElementById('filterAccountSelect');
       const activeFilterBadge = document.getElementById('activeFilterBadge');
       const activeFilterName = document.getElementById('activeFilterName');
@@ -823,7 +835,13 @@
         db.collection('user_data').doc(currentUser.uid).get().then(doc => {
           if (doc.exists) {
             const data = doc.data();
-            if (data.accounts && Array.isArray(data.accounts)) accounts = data.accounts;
+            if (data.accounts && Array.isArray(data.accounts)) {
+              accounts = data.accounts;
+              accounts.forEach(a => {
+                if (typeof a.includeNetWorth === 'undefined') a.includeNetWorth = true;
+                if (typeof a.isArchived === 'undefined') a.isArchived = false;
+              });
+            }
             if (data.transactions && Array.isArray(data.transactions)) transactions = data.transactions;
             if (data.categories) categories = data.categories;
             saveLocal();
@@ -928,11 +946,16 @@
         accountCardsContainer.innerHTML = '';
         let netWorthTWD = 0;
 
+        // 計算淨資產：排除封存帳戶以及不納入資產的帳戶
         accounts.forEach(acc => {
+          if (acc.isArchived) return;
+
           let shouldInclude = acc.includeNetWorth !== false;
           if (acc.parentId) {
             const parent = accounts.find(p => p.id === acc.parentId);
-            if (parent && parent.includeNetWorth === false) shouldInclude = false;
+            if (parent && (parent.includeNetWorth === false || parent.isArchived)) {
+              shouldInclude = false;
+            }
           }
 
           if (shouldInclude) {
@@ -945,7 +968,9 @@
           }
         });
 
-        let rootAccounts = accounts.filter(isRootAccount);
+        // 僅篩選活躍未封存帳戶
+        let rootAccounts = accounts.filter(a => isRootAccount(a) && !a.isArchived);
+
         if (currentCardTypeFilter !== 'all') {
           if (currentCardTypeFilter === 'other') {
             rootAccounts = rootAccounts.filter(a => a.type === 'epay' || a.type === 'investment');
@@ -954,14 +979,21 @@
           }
         }
 
+        // 排序：將正常計入的帳戶置前，不計入的虛線帳戶置後，保持主視野聚焦
+        rootAccounts.sort((a, b) => {
+          const aInc = a.includeNetWorth !== false ? 1 : 0;
+          const bInc = b.includeNetWorth !== false ? 1 : 0;
+          return bInc - aInc;
+        });
+
         if (rootAccounts.length === 0) {
-          accountCardsContainer.innerHTML = '<div class="py-8 text-center text-xs text-stone-400 w-full">此分類下尚無帳戶卡片</div>';
+          accountCardsContainer.innerHTML = '<div class="py-8 text-center text-xs text-stone-400 w-full">此分類下尚無活躍帳戶卡片</div>';
           if (totalNetWorthEl) totalNetWorthEl.textContent = 'NT$ ' + Math.round(netWorthTWD).toLocaleString();
           return;
         }
 
         rootAccounts.forEach(rootAcc => {
-          const children = accounts.filter(a => a.parentId === rootAcc.id);
+          const children = accounts.filter(a => a.parentId === rootAcc.id && !a.isArchived);
           const hasChildren = children.length > 0;
           let groupTotal = balances[rootAcc.id] || 0;
           children.forEach(c => { groupTotal += (balances[c.id] || 0); });
@@ -975,9 +1007,18 @@
           const isSelected = currentFilterAccountId === rootAcc.id;
           const isExcludedFromNetWorth = rootAcc.includeNetWorth === false;
           const card = document.createElement('div');
-          
-          card.className = 'flex-shrink-0 w-80 bg-white p-5 rounded-2xl transition-all duration-150 cursor-pointer group flex flex-col justify-between ' +
-            (isSelected ? 'border-2 border-stone-900 shadow-xl -translate-y-1' : 'border border-stone-200 shadow-sm hover:border-stone-400 hover:shadow-md');
+
+          // 核心美學優化：不計入者反灰、虛線、半透明
+          let cardStyleClasses = 'flex-shrink-0 w-80 p-5 rounded-2xl transition-all duration-200 cursor-pointer group flex flex-col justify-between ';
+          if (isSelected) {
+            cardStyleClasses += 'border-2 border-stone-900 shadow-xl -translate-y-1 bg-white ';
+          } else if (isExcludedFromNetWorth) {
+            cardStyleClasses += 'bg-stone-100/70 border-2 border-dashed border-stone-300 opacity-60 hover:opacity-100 hover:bg-white hover:border-stone-400 shadow-none hover:shadow-md ';
+          } else {
+            cardStyleClasses += 'bg-white border border-stone-200 shadow-sm hover:border-stone-400 hover:shadow-md ';
+          }
+
+          card.className = cardStyleClasses;
           card.setAttribute('data-card-account-id', rootAcc.id);
 
           const isCredit = rootAcc.type === 'credit';
@@ -985,7 +1026,7 @@
 
           let childrenHtml = '';
           if (hasChildren) {
-            childrenHtml = '<div class="mt-3.5 pt-2.5 border-t border-stone-100 space-y-1.5">' +
+            childrenHtml = '<div class="mt-3.5 pt-2.5 border-t border-stone-200/60 space-y-1.5">' +
               '<div class="text-[10px] font-semibold text-stone-400 uppercase tracking-wider flex justify-between items-center">' +
                 '<span>分戶 / 子卡明細</span>' +
                 '<span class="text-[9px] text-stone-400">點擊可篩選</span>' +
@@ -994,8 +1035,8 @@
                 const childBal = balances[child.id] || 0;
                 const isChildSelected = currentFilterAccountId === child.id;
                 return '<div data-child-card-id="' + child.id + '" class="child-card-badge flex justify-between items-center text-xs ' + 
-                  (isChildSelected ? 'bg-stone-900 text-white font-semibold' : 'bg-stone-50 hover:bg-stone-100 text-stone-700') + 
-                  ' px-2.5 py-1.5 rounded-xl border border-stone-200/50 transition">' +
+                  (isChildSelected ? 'bg-stone-900 text-white font-semibold' : 'bg-white hover:bg-stone-100 text-stone-700') + 
+                  ' px-2.5 py-1.5 rounded-xl border border-stone-200/70 transition">' +
                   '<span class="truncate flex items-center gap-1.5">' +
                     '<span class="w-1.5 h-1.5 rounded-full ' + (isChildSelected ? 'bg-white' : 'bg-stone-400') + '"></span>' +
                     child.name +
@@ -1014,16 +1055,16 @@
           card.innerHTML = '<div>' +
             '<div class="flex items-center justify-between mb-2">' +
               '<div class="flex items-center gap-1.5">' +
-                '<span class="inline-flex items-center gap-1 text-[11px] font-medium text-stone-500 bg-stone-100 px-2 py-0.5 rounded-full">' +
+                '<span class="inline-flex items-center gap-1 text-[11px] font-medium text-stone-500 bg-stone-200/60 px-2 py-0.5 rounded-full">' +
                   typeBadge + (hasChildren ? ' (母總戶)' : '') +
                 '</span>' +
-                (isExcludedFromNetWorth ? '<span class="inline-flex items-center text-[10px] text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded border border-stone-200" title="此帳戶不計入頂部總資產">不計入總額</span>' : '') +
+                (isExcludedFromNetWorth ? '<span class="inline-flex items-center text-[10px] text-stone-600 bg-stone-200/90 px-1.5 py-0.5 rounded font-semibold border border-stone-300" title="此帳戶不計入頂部總資產">🔒 獨立不計</span>' : '') +
               '</div>' +
               '<div class="flex items-center gap-1.5">' +
                 (isSelected ? '<span class="text-[10px] bg-stone-900 text-white px-2 py-0.5 rounded-md font-medium tracking-tight">檢視中</span>' : '') +
                 '<span class="text-[11px] font-bold text-stone-400">' + rootAcc.currency + '</span>' +
                 (isCredit ? '<button type="button" data-open-reconcile-id="' + rootAcc.id + '" class="btn-card-reconcile text-[10px] text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded border border-indigo-200 transition font-semibold" title="信用卡帳單對帳與期別調整">📋 帳單對帳</button>' : '') +
-                '<button type="button" data-quick-adjust-id="' + rootAcc.id + '" class="btn-card-adjust text-[10px] text-stone-500 hover:text-stone-800 flex items-center gap-0.5 bg-stone-50 px-1.5 py-0.5 rounded border border-stone-200 transition" title="餘額調整">⚙️ 餘額調整</button>' +
+                '<button type="button" data-quick-adjust-id="' + rootAcc.id + '" class="btn-card-adjust text-[10px] text-stone-500 hover:text-stone-800 flex items-center gap-0.5 bg-white px-1.5 py-0.5 rounded border border-stone-200 transition shadow-xs" title="餘額調整">⚙️ 調整</button>' +
               '</div>' +
             '</div>' +
             '<div class="text-sm font-bold text-stone-800 truncate group-hover:text-stone-900">' +
@@ -1043,7 +1084,7 @@
                 '<span>' + (rootAcc.dueDay ? '繳款期限: ' + rootAcc.dueDay + ' 號' : '') + '</span>' +
               '</div>' +
               (rootAcc.creditLimit ? 
-                '<div class="w-full bg-stone-100 rounded-full h-1.5 mt-1.5 overflow-hidden">' +
+                '<div class="w-full bg-stone-200/60 rounded-full h-1.5 mt-1.5 overflow-hidden">' +
                   '<div class="bg-stone-800 h-1.5 rounded-full" style="width: ' + Math.min(100, Math.max(0, (Math.abs(groupTotal) / rootAcc.creditLimit) * 100)) + '%"></div>' +
                 '</div>' +
                 '<div class="text-[9px] text-stone-400 mt-0.5 text-right">剩餘可用額度: $' + Math.max(0, rootAcc.creditLimit + groupTotal).toLocaleString() + '</div>' : '') 
@@ -1065,10 +1106,12 @@
       }
 
       function renderAccountOptions() {
-        const roots = accounts.filter(isRootAccount);
+        // 記帳與轉帳下拉選單：完全排除已封存帳戶
+        const activeRoots = accounts.filter(a => isRootAccount(a) && !a.isArchived);
+
         let formSelectHtml = '';
-        roots.forEach(root => {
-          const children = accounts.filter(a => a.parentId === root.id);
+        activeRoots.forEach(root => {
+          const children = accounts.filter(a => a.parentId === root.id && !a.isArchived);
           if (children.length > 0) {
             formSelectHtml += '<optgroup label="── ' + root.name + ' ──">' +
               '<option value="' + root.id + '">' + root.name + ' (母總戶)</option>' +
@@ -1086,16 +1129,17 @@
 
         const creditPayFromSelect = document.getElementById('creditPayFromAccountSelect');
         if (creditPayFromSelect) {
-          const bankAccounts = accounts.filter(a => a.type === 'bank' || a.type === 'cash');
+          const bankAccounts = accounts.filter(a => !a.isArchived && (a.type === 'bank' || a.type === 'cash'));
           creditPayFromSelect.innerHTML = bankAccounts.map(a => 
             '<option value="' + a.id + '">' + a.name + ' (' + a.currency + ')</option>'
           ).join('');
         }
 
+        // 篩選下拉清單
         let filterOptionsHtml = '<option value="all">所有帳戶</option>';
-        roots.forEach(root => {
+        activeRoots.forEach(root => {
           const isRootSelected = currentFilterAccountId === root.id;
-          const children = accounts.filter(a => a.parentId === root.id);
+          const children = accounts.filter(a => a.parentId === root.id && !a.isArchived);
 
           if (children.length > 0) {
             filterOptionsHtml += '<option value="' + root.id + '" ' + (isRootSelected ? 'selected' : '') + '>' + root.name + ' (全部子卡/分戶)</option>' +
@@ -1106,8 +1150,9 @@
         });
         if (filterAccountSelect) filterAccountSelect.innerHTML = filterOptionsHtml;
 
+        // 母帳戶選取下拉
         const currentEditingId = editingAccountIdInput ? editingAccountIdInput.value : '';
-        const eligibleParents = accounts.filter(a => isRootAccount(a) && a.id !== currentEditingId);
+        const eligibleParents = accounts.filter(a => isRootAccount(a) && !a.isArchived && a.id !== currentEditingId);
         const savedSelectedParent = accParentSelect ? accParentSelect.value : '';
         if (accParentSelect) {
           accParentSelect.innerHTML = '<option value="">獨立帳戶 / 主帳戶 (無母帳戶)</option>' +
@@ -1134,11 +1179,13 @@
           }
         }
 
+        // 渲染帳戶管理清單 (活躍清單 vs 封存專區)
+        const activeRootsForModal = accounts.filter(a => isRootAccount(a) && !a.isArchived);
         const typeGroups = [
-          { key: 'cash', title: '💵 現金皮夾', items: roots.filter(r => r.type === 'cash') },
-          { key: 'bank', title: '🏦 銀行帳戶 (實體/數位)', items: roots.filter(r => r.type === 'bank') },
-          { key: 'credit', title: '💳 信用卡群組', items: roots.filter(r => r.type === 'credit') },
-          { key: 'other', title: '📱 電子支付與投資', items: roots.filter(r => r.type === 'epay' || r.type === 'investment') }
+          { key: 'cash', title: '💵 現金皮夾', items: activeRootsForModal.filter(r => r.type === 'cash') },
+          { key: 'bank', title: '🏦 銀行帳戶 (實體/數位)', items: activeRootsForModal.filter(r => r.type === 'bank') },
+          { key: 'credit', title: '💳 信用卡群組', items: activeRootsForModal.filter(r => r.type === 'credit') },
+          { key: 'other', title: '📱 電子支付與投資', items: activeRootsForModal.filter(r => r.type === 'epay' || r.type === 'investment') }
         ];
 
         if (modalAccountList) {
@@ -1151,7 +1198,7 @@
               '</div>' +
               '<div class="space-y-2">' +
                 group.items.map(root => {
-                  const children = accounts.filter(a => a.parentId === root.id);
+                  const children = accounts.filter(a => a.parentId === root.id && !a.isArchived);
                   const isExcluded = root.includeNetWorth === false;
                   return '<div class="p-3 bg-white rounded-xl border border-stone-200 text-xs space-y-2 shadow-xs">' +
                     '<div class="flex items-center justify-between gap-2">' +
@@ -1159,15 +1206,16 @@
                         '<div class="flex items-center gap-1.5">' +
                           '<span class="font-bold text-stone-900 text-[13px] truncate">' + root.name + '</span>' +
                           '<span class="text-[10px] bg-stone-100 text-stone-600 px-1.5 py-0.5 rounded">' + root.type + '</span>' +
-                          (isExcluded ? '<span class="text-[10px] bg-stone-100 text-stone-400 px-1.5 py-0.5 rounded">不計入總額</span>' : '') +
+                          (isExcluded ? '<span class="text-[10px] bg-stone-200/90 text-stone-700 font-semibold px-1.5 py-0.5 rounded border border-stone-300">獨立不計</span>' : '') +
                         '</div>' +
                         '<div class="text-[11px] text-stone-400 mt-0.5">' + root.currency + ' · 初始 $' + Number(root.initialBalance).toLocaleString() + '</div>' +
                       '</div>' +
                       '<div class="flex items-center gap-1 flex-shrink-0">' +
-                        '<button type="button" data-move-up="' + root.id + '" class="btn-move-acc px-2 py-1 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded border border-stone-200 text-xs font-bold">↑</button>' +
-                        '<button type="button" data-move-down="' + root.id + '" class="btn-move-acc px-2 py-1 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded border border-stone-200 text-xs font-bold">↓</button>' +
+                        '<button type="button" data-move-up="' + root.id + '" class="btn-move-acc px-2 py-1 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded border border-stone-200 text-xs font-bold" title="往上移">↑</button>' +
+                        '<button type="button" data-move-down="' + root.id + '" class="btn-move-acc px-2 py-1 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded border border-stone-200 text-xs font-bold" title="往下移">↓</button>' +
                         '<button type="button" data-edit-id="' + root.id + '" class="btn-edit-account px-2.5 py-1 text-xs font-medium text-stone-700 bg-white hover:bg-stone-100 border border-stone-200 rounded-lg shadow-sm transition ml-1">修改</button>' +
-                        '<button type="button" data-acc-id="' + root.id + '" class="btn-del-account px-2.5 py-1 text-xs font-medium text-rose-600 bg-white hover:bg-rose-50 border border-stone-200 rounded-lg shadow-sm transition">刪除</button>' +
+                        '<button type="button" data-archive-id="' + root.id + '" class="btn-archive-acc px-2.5 py-1 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg shadow-sm transition" title="封存此帳戶，日後可還原">封存</button>' +
+                        '<button type="button" data-acc-id="' + root.id + '" class="btn-del-account px-2 py-1 text-xs font-medium text-rose-600 bg-white hover:bg-rose-50 border border-stone-200 rounded-lg shadow-sm transition">刪除</button>' +
                       '</div>' +
                     '</div>' +
                     (children.length > 0 ? 
@@ -1180,8 +1228,9 @@
                             '<div class="flex items-center gap-1 flex-shrink-0">' +
                               '<button type="button" data-move-up="' + c.id + '" class="btn-move-acc px-1.5 py-0.5 text-stone-500 hover:text-stone-800 rounded border border-stone-200 bg-white text-xs font-bold">↑</button>' +
                               '<button type="button" data-move-down="' + c.id + '" class="btn-move-acc px-1.5 py-0.5 text-stone-500 hover:text-stone-800 rounded border border-stone-200 bg-white text-xs font-bold">↓</button>' +
-                              '<button type="button" data-edit-id="' + c.id + '" class="btn-edit-account px-2.5 py-0.5 text-xs text-stone-700 bg-white hover:bg-stone-100 border border-stone-200 rounded-md transition ml-1">修改</button>' +
-                              '<button type="button" data-acc-id="' + c.id + '" class="btn-del-account px-2.5 py-0.5 text-xs text-rose-600 bg-white hover:bg-rose-50 border border-stone-200 rounded-md transition">刪除</button>' +
+                              '<button type="button" data-edit-id="' + c.id + '" class="btn-edit-account px-2 py-0.5 text-xs text-stone-700 bg-white hover:bg-stone-100 border border-stone-200 rounded-md transition ml-1">修改</button>' +
+                              '<button type="button" data-archive-id="' + c.id + '" class="btn-archive-acc px-2 py-0.5 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-md transition">封存</button>' +
+                              '<button type="button" data-acc-id="' + c.id + '" class="btn-del-account px-2 py-0.5 text-xs text-rose-600 bg-white hover:bg-rose-50 border border-stone-200 rounded-md transition">刪除</button>' +
                             '</div>' +
                           '</div>'
                         ).join('') +
@@ -1191,6 +1240,32 @@
               '</div>' +
             '</div>';
           }).join('');
+        }
+
+        // 渲染已封存清單
+        const archivedAccounts = accounts.filter(a => a.isArchived);
+        if (archivedCountBadge) archivedCountBadge.textContent = archivedAccounts.length;
+
+        if (modalArchivedAccountList) {
+          if (archivedAccounts.length === 0) {
+            modalArchivedAccountList.innerHTML = '<div class="p-3 bg-stone-50 rounded-xl border border-stone-200 text-center text-xs text-stone-400">目前尚無任何封存帳戶</div>';
+          } else {
+            modalArchivedAccountList.innerHTML = archivedAccounts.map(a => {
+              return '<div class="p-3 bg-stone-100/80 rounded-xl border border-dashed border-stone-300 text-xs flex justify-between items-center gap-2">' +
+                '<div class="min-w-0 flex-1">' +
+                  '<div class="flex items-center gap-2">' +
+                    '<span class="font-bold text-stone-700 line-through truncate">' + a.name + '</span>' +
+                    '<span class="text-[10px] bg-stone-200 text-stone-600 px-1.5 py-0.2 rounded font-medium">已封存</span>' +
+                  '</div>' +
+                  '<div class="text-[10px] text-stone-400 mt-0.5">' + a.type + ' · ' + a.currency + '</div>' +
+                '</div>' +
+                '<div class="flex items-center gap-1.5 flex-shrink-0">' +
+                  '<button type="button" data-unarchive-id="' + a.id + '" class="px-3 py-1 bg-white hover:bg-stone-50 text-stone-700 text-xs font-semibold rounded-lg border border-stone-300 shadow-xs transition">解封啟用</button>' +
+                  '<button type="button" data-acc-id="' + a.id + '" class="btn-del-account px-2 py-1 text-xs text-rose-600 hover:bg-rose-50 rounded transition">永久刪除</button>' +
+                '</div>' +
+              '</div>';
+            }).join('');
+          }
         }
       }
 
@@ -1211,6 +1286,23 @@
         const temp = accounts[realIndexA];
         accounts[realIndexA] = accounts[realIndexB];
         accounts[realIndexB] = temp;
+
+        saveLocal();
+        renderAll();
+      }
+
+      function toggleArchiveAccount(id, archiveState) {
+        const acc = accounts.find(a => a.id === id);
+        if (!acc) return;
+
+        acc.isArchived = archiveState;
+        // 若為母帳戶封存，則連同所有子卡一起封存/解封
+        accounts.forEach(c => {
+          if (c.parentId === id) c.isArchived = archiveState;
+        });
+
+        // 若當前正在篩選此帳戶，重設為 all
+        if (currentFilterAccountId === id) currentFilterAccountId = 'all';
 
         saveLocal();
         renderAll();
@@ -1279,6 +1371,8 @@
           if (!name) return;
 
           const id = editingAccountIdInput.value || ('acc_' + Date.now());
+          const existingAcc = accounts.find(a => a.id === id);
+
           const newAcc = {
             id: id,
             name: name,
@@ -1287,6 +1381,7 @@
             currency: document.getElementById('accCurrency').value,
             initialBalance: parseFloat(document.getElementById('accInitialBalance').value) || 0,
             includeNetWorth: accIncludeNetWorth.checked,
+            isArchived: existingAcc ? existingAcc.isArchived : false,
             creditLimit: accTypeSelect.value === 'credit' ? parseFloat(document.getElementById('accCreditLimit').value) || null : null,
             statementDay: accTypeSelect.value === 'credit' ? parseInt(document.getElementById('accStatementDay').value) || null : null,
             dueDay: accTypeSelect.value === 'credit' ? parseInt(document.getElementById('accDueDay').value) || null : null
@@ -1338,6 +1433,8 @@
             const fromAcc = accounts.find(a => a.id === t.fromAccountId) || { name: '未知帳戶', currency: 'TWD' };
             const toAcc = accounts.find(a => a.id === t.toAccountId) || { name: '未知帳戶', currency: 'TWD' };
             const hasFee = Number(t.fee || 0) > 0;
+            const fromArchived = fromAcc.isArchived ? ' [已封存]' : '';
+            const toArchived = toAcc.isArchived ? ' [已封存]' : '';
 
             return '<li class="py-3 flex items-center justify-between hover:bg-stone-50/60 transition px-2 rounded-xl group bg-indigo-50/20">' +
               '<div class="flex items-center gap-3">' +
@@ -1345,7 +1442,7 @@
                 '<div>' +
                   '<div class="flex items-center gap-2">' +
                     '<span class="text-xs font-bold text-indigo-900">帳戶互轉</span>' +
-                    '<span class="text-[10px] text-stone-500 bg-stone-100 px-1.5 py-0.5 rounded font-medium">' + fromAcc.name + ' ➔ ' + toAcc.name + '</span>' +
+                    '<span class="text-[10px] text-stone-500 bg-stone-100 px-1.5 py-0.5 rounded font-medium">' + fromAcc.name + fromArchived + ' ➔ ' + toAcc.name + toArchived + '</span>' +
                     (hasFee ? '<span class="text-[9px] bg-rose-50 text-rose-600 px-1 py-0.2 rounded border border-rose-100">手續費 $' + t.fee + '</span>' : '') +
                   '</div>' +
                   '<div class="text-[11px] text-stone-400 flex items-center gap-2 mt-0.5">' +
@@ -1372,6 +1469,7 @@
             const isRec = t.type === 'receivable';
             const isDismissed = t.debtStatus === 'dismissed';
             const isSettled = t.debtStatus === 'settled';
+            const accArchived = acc.isArchived ? ' [已封存]' : '';
 
             let dueBadge = '';
             if (!isDismissed && !isSettled && t.dueDate) {
@@ -1404,7 +1502,7 @@
                   '<div class="flex items-center gap-2 flex-wrap">' +
                     '<span class="text-xs font-bold ' + (isDismissed ? 'text-stone-600' : 'text-stone-900') + '">' + (isRec ? '應收帳款' : '應付帳款') + '</span>' +
                     (t.debtPerson ? '<span class="text-xs font-semibold text-stone-700 bg-stone-200/80 px-1.5 py-0.2 rounded">' + escapeHtml(t.debtPerson) + '</span>' : '') +
-                    '<span class="text-[10px] text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded">' + acc.name + '</span>' +
+                    '<span class="text-[10px] text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded">' + acc.name + accArchived + '</span>' +
                     statusBadge +
                     dueBadge +
                   '</div>' +
@@ -1440,6 +1538,7 @@
           const isSettleRecord = !!t.settledFromId;
           const hasFee = Number(t.fee || 0) > 0;
           const isShiftedPeriod = t.billPeriodShift === 1;
+          const accArchived = acc.isArchived ? ' [已封存]' : '';
 
           return '<li class="py-3 flex items-center justify-between hover:bg-stone-50/60 transition px-2 rounded-xl group ' + (isAdjust ? 'bg-amber-50/30' : (isSettleRecord ? 'bg-emerald-50/30' : '')) + '">' +
             '<div class="flex items-center gap-3">' +
@@ -1449,7 +1548,7 @@
               '<div>' +
                 '<div class="flex items-center gap-2 flex-wrap">' +
                   '<span class="text-xs font-bold text-stone-800">' + t.category + '</span>' +
-                  '<span class="text-[10px] text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded">' + displayName + '</span>' +
+                  '<span class="text-[10px] text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded">' + displayName + accArchived + '</span>' +
                   (isShiftedPeriod ? '<span class="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.2 rounded font-medium">已移至下期</span>' : '') +
                   (isSettleRecord ? '<span class="text-[9px] bg-emerald-200 text-emerald-800 px-1.5 py-0.2 rounded font-semibold">結清款入帳</span>' : '') +
                   (hasFee ? '<span class="text-[9px] bg-rose-50 text-rose-600 px-1 py-0.2 rounded border border-rose-100">手續費 $' + t.fee + '</span>' : '') +
@@ -1577,11 +1676,12 @@
           }
         }
 
+        // 資產帳戶圖表：排除封存帳戶以及不納入資產的帳戶
         const assetLabels = [];
         const assetData = [];
-        accounts.filter(isRootAccount).forEach(a => {
+        accounts.filter(a => isRootAccount(a) && !a.isArchived).forEach(a => {
           if (a.includeNetWorth !== false) {
-            const children = accounts.filter(c => c.parentId === a.id);
+            const children = accounts.filter(c => c.parentId === a.id && !c.isArchived);
             let total = balances[a.id] || 0;
             children.forEach(c => total += (balances[c.id] || 0));
             if (total > 0) {
@@ -1957,7 +2057,7 @@
         const rootAcc = accounts.find(a => a.id === cardId);
         if (!rootAcc) return;
 
-        const childIds = accounts.filter(a => a.parentId === cardId).map(a => a.id);
+        const childIds = accounts.filter(a => a.parentId === cardId && !a.isArchived).map(a => a.id);
         const cardIds = [cardId, ...childIds];
 
         const cardTitleEl = document.getElementById('reconcileCardTitle');
@@ -2112,7 +2212,7 @@
       if (btnDownloadBackup) {
         btnDownloadBackup.onclick = () => {
           const backupData = {
-            version: '2.0',
+            version: '2.5',
             exportedAt: new Date().toISOString(),
             accounts: accounts,
             transactions: transactions,
@@ -2145,6 +2245,10 @@
               }
               if (confirm('確定要還原此備份檔案嗎？現有資料將會被備份檔內容完全替換！')) {
                 accounts = data.accounts;
+                accounts.forEach(a => {
+                  if (typeof a.includeNetWorth === 'undefined') a.includeNetWorth = true;
+                  if (typeof a.isArchived === 'undefined') a.isArchived = false;
+                });
                 transactions = data.transactions || [];
                 categories = data.categories || DEFAULT_CATEGORIES;
                 saveLocal();
@@ -2233,8 +2337,9 @@
       }
 
       function deleteAccount(id) {
-        if (accounts.length <= 1) {
-          alert('請至少保留一個帳戶！');
+        const activeCount = accounts.filter(a => !a.isArchived).length;
+        if (activeCount <= 1 && !accounts.find(a => a.id === id)?.isArchived) {
+          alert('請至少保留一個活躍帳戶！');
           return;
         }
         const updatedAccounts = accounts.map(a => {
@@ -2290,9 +2395,25 @@
           return;
         }
 
+        const archiveBtn = e.target.closest('.btn-archive-acc');
+        if (archiveBtn) {
+          const accId = archiveBtn.getAttribute('data-archive-id');
+          if (confirm('確定要封存此帳戶嗎？封存後將不再顯示於卡片列與記帳下拉選單中，但歷史紀錄會完整保留。')) {
+            toggleArchiveAccount(accId, true);
+          }
+          return;
+        }
+
+        const unarchiveBtn = e.target.closest('[data-unarchive-id]');
+        if (unarchiveBtn) {
+          const accId = unarchiveBtn.getAttribute('data-unarchive-id');
+          toggleArchiveAccount(accId, false);
+          return;
+        }
+
         const delAccBtn = e.target.closest('.btn-del-account');
         if (delAccBtn) {
-          if (confirm('確定要移除此帳戶嗎？（若為母帳戶，子卡將自動轉為獨立卡片）')) {
+          if (confirm('確定要刪除此帳戶嗎？（注意：若只想暫時不使用，建議點擊「封存」；若為母帳戶，子卡將自動轉為獨立卡片）')) {
             deleteAccount(delAccBtn.getAttribute('data-acc-id'));
           }
           return;
@@ -2331,7 +2452,7 @@
             saveLocal();
             renderAll();
             if (reconcilingCardId) {
-              const childIds = accounts.filter(a => a.parentId === reconcilingCardId).map(a => a.id);
+              const childIds = accounts.filter(a => a.parentId === reconcilingCardId && !a.isArchived).map(a => a.id);
               renderReconcileList([reconcilingCardId, ...childIds]);
             }
           }
@@ -2353,7 +2474,7 @@
             tx.reconciled = e.target.checked;
             saveLocal();
             if (reconcilingCardId) {
-              const childIds = accounts.filter(a => a.parentId === reconcilingCardId).map(a => a.id);
+              const childIds = accounts.filter(a => a.parentId === reconcilingCardId && !a.isArchived).map(a => a.id);
               renderReconcileList([reconcilingCardId, ...childIds]);
             }
           }
