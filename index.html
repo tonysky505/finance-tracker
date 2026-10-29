@@ -2,8 +2,7 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="robots" content="noindex, nofollow">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>極簡資產記帳本 | 旗艦專業版</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -15,12 +14,13 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
-  <!-- EmailJS 模組 (可選用，用於免後端發送 Email) -->
+  <!-- EmailJS 模組 -->
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
     }
     .custom-scrollbar::-webkit-scrollbar {
       width: 4px;
@@ -30,185 +30,219 @@
       background: #e2e8f0;
       border-radius: 4px;
     }
+    /* 防止 iOS Safari 在點選小於 16px 的 input 時強制自動放大頁面 */
+    @media (max-width: 640px) {
+      input, select, textarea {
+        font-size: 16px !important;
+      }
+    }
+    /* 卡片橫向滑動順暢感 */
+    .snap-x-cards {
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+    }
+    .snap-card {
+      scroll-snap-align: start;
+    }
   </style>
 </head>
-<body class="bg-stone-50 text-stone-800 min-h-screen">
+<body class="bg-stone-50 text-stone-800 min-h-screen pb-20 sm:pb-8">
 
-  <!-- 頂部導航列 -->
-  <header class="bg-white sticky top-0 z-30 border-b border-stone-200 px-4 lg:px-8 py-3.5 flex justify-between items-center shadow-xs">
-    <div class="flex items-center gap-2.5">
-      <div class="w-9 h-9 rounded-xl bg-stone-900 text-white flex items-center justify-center font-bold text-sm">
-        $
-      </div>
-      <div>
-        <h1 class="text-base font-bold tracking-tight text-stone-900">資產記帳本</h1>
-        <div id="syncStatusBadge" class="flex items-center gap-1.5 text-[11px] text-stone-500">
-          <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-          <span id="syncStatusText">本機離線模式 (尚未登入)</span>
+  <!-- 頂部導航列 (優化手機自適應折疊與流暢排版) -->
+  <header class="bg-white sticky top-0 z-30 border-b border-stone-200 px-3 sm:px-6 py-2.5 sm:py-3 shadow-xs">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-xl bg-stone-900 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+            $
+          </div>
+          <div>
+            <h1 class="text-sm sm:text-base font-bold tracking-tight text-stone-900 leading-tight">資產記帳本</h1>
+            <div id="syncStatusBadge" class="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-stone-500">
+              <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+              <span id="syncStatusText" class="truncate max-w-[140px] sm:max-w-none">離線模式</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 手機版右側快捷按鈕 (登入/狀態) -->
+        <div class="flex sm:hidden items-center gap-1.5">
+          <div id="mobileAuthContainer" class="flex items-center">
+            <button type="button" id="btnMobileLogin" class="p-1.5 text-xs text-stone-700 bg-stone-100 rounded-lg">G 登入</button>
+            <div id="mobileUserProfile" class="hidden items-center gap-1">
+              <img id="mobileUserAvatar" src="" class="w-6 h-6 rounded-full border border-stone-300" alt="Avatar">
+            </div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="flex items-center gap-2">
-      <!-- 月份切換控制器 -->
-      <div class="flex items-center bg-stone-100 rounded-lg p-0.5 border border-stone-200 text-xs">
-        <button type="button" id="btnPrevMonth" class="px-2 py-1 hover:bg-stone-200 rounded font-bold text-stone-600">◀</button>
-        <span id="currentMonthDisplay" class="px-2 font-semibold text-stone-800">載入中...</span>
-        <button type="button" id="btnNextMonth" class="px-2 py-1 hover:bg-stone-200 rounded font-bold text-stone-600">▶</button>
-        <button type="button" id="btnAllMonths" class="px-2 py-1 hover:bg-stone-200 rounded text-stone-500 text-[11px] border-l border-stone-200 ml-1">全部</button>
-      </div>
+      <!-- 控制列：月份切換與管理選單 (在手機上橫向滾動不破版) -->
+      <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+        <div class="flex items-center bg-stone-100 rounded-lg p-0.5 border border-stone-200 text-xs shrink-0">
+          <button type="button" id="btnPrevMonth" class="px-2 py-1.5 hover:bg-stone-200 rounded font-bold text-stone-600 active:scale-95">◀</button>
+          <span id="currentMonthDisplay" class="px-2 font-semibold text-stone-800 text-[11px] sm:text-xs">載入中...</span>
+          <button type="button" id="btnNextMonth" class="px-2 py-1.5 hover:bg-stone-200 rounded font-bold text-stone-600 active:scale-95">▶</button>
+          <button type="button" id="btnAllMonths" class="px-2 py-1.5 hover:bg-stone-200 rounded text-stone-500 text-[11px] border-l border-stone-200 ml-0.5">全部</button>
+        </div>
 
-      <button type="button" id="openBackupModalBtn" class="px-3 py-1.5 text-xs font-medium text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-lg transition" title="備份或還原記帳資料">
-        備份/還原
-      </button>
-
-      <button type="button" id="openEmailSettingBtn" class="px-3 py-1.5 text-xs font-medium text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-lg transition" title="設定郵件提醒">
-        ✉️ 提醒設定
-      </button>
-
-      <button type="button" id="openCategoryModalBtn" class="px-3 py-1.5 text-xs font-medium text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-lg transition">
-        分類管理
-      </button>
-
-      <button type="button" id="openAccountModalBtn" class="px-3 py-1.5 text-xs font-medium text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-lg transition">
-        帳戶/排序管理
-      </button>
-
-      <!-- Google 帳號登入/狀態按鈕 -->
-      <div id="authSection" class="ml-1 pl-2 border-l border-stone-200">
-        <button type="button" id="btnLoginGoogle" class="px-3 py-1.5 text-xs font-medium text-white bg-stone-900 hover:bg-stone-800 rounded-lg transition flex items-center gap-1.5">
-          <span>G 登入同步</span>
+        <button type="button" id="openAccountModalBtn" class="shrink-0 px-2.5 py-1.5 text-xs font-medium text-stone-700 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 rounded-lg transition">
+          帳戶管理
         </button>
 
-        <div id="userProfile" class="hidden items-center gap-2">
-          <img id="userAvatar" src="" class="w-7 h-7 rounded-full border border-stone-300" alt="Avatar">
-          <button type="button" id="btnLogout" class="text-xs text-stone-500 hover:text-stone-800 underline">
-            登出
+        <button type="button" id="openCategoryModalBtn" class="shrink-0 px-2.5 py-1.5 text-xs font-medium text-stone-700 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 rounded-lg transition">
+          分類
+        </button>
+
+        <button type="button" id="openEmailSettingBtn" class="shrink-0 px-2.5 py-1.5 text-xs font-medium text-stone-700 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 rounded-lg transition" title="設定郵件提醒">
+          ✉️ 提醒
+        </button>
+
+        <button type="button" id="openBackupModalBtn" class="shrink-0 px-2.5 py-1.5 text-xs font-medium text-stone-700 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 rounded-lg transition" title="備份或還原記帳資料">
+          備份
+        </button>
+
+        <div id="desktopAuthSection" class="hidden sm:flex items-center gap-2 pl-2 border-l border-stone-200 shrink-0">
+          <button type="button" id="btnLoginGoogle" class="px-3 py-1.5 text-xs font-medium text-white bg-stone-900 hover:bg-stone-800 rounded-lg transition flex items-center gap-1.5">
+            <span>G 登入同步</span>
           </button>
+          <div id="userProfile" class="hidden items-center gap-2">
+            <img id="userAvatar" src="" class="w-7 h-7 rounded-full border border-stone-300" alt="Avatar">
+            <button type="button" id="btnLogout" class="text-xs text-stone-500 hover:text-stone-800 underline">登出</button>
+          </div>
         </div>
       </div>
     </div>
   </header>
 
   <!-- 主內容容器 -->
-  <main class="max-w-7xl mx-auto p-4 md:p-6 lg:p-8 space-y-6">
+  <main class="max-w-7xl mx-auto p-3.5 sm:p-6 lg:p-8 space-y-5 sm:space-y-6">
 
     <!-- 頂部總覽區塊 -->
     <section class="space-y-3">
-      <div class="flex flex-col sm:flex-row justify-between sm:items-end gap-2">
+      <div class="flex justify-between items-end gap-2">
         <div>
-          <span class="text-xs font-semibold tracking-wider text-stone-400 uppercase">Total Net Worth</span>
-          <div class="text-3xl font-extrabold text-stone-900 tracking-tight flex items-baseline gap-2">
+          <span class="text-[10px] sm:text-xs font-semibold tracking-wider text-stone-400 uppercase">Total Net Worth</span>
+          <div class="text-2xl sm:text-3xl font-extrabold text-stone-900 tracking-tight flex items-baseline gap-1.5 sm:gap-2">
             <span id="totalNetWorth">NT$ 0</span>
-            <span class="text-xs font-normal text-stone-500">（已納入計算之活躍帳戶折合）</span>
+            <span class="text-[10px] sm:text-xs font-normal text-stone-500">（活躍帳戶折合）</span>
           </div>
         </div>
-        <div class="flex items-center gap-2">
+        <!-- 桌面版記一筆按鈕 -->
+        <div class="hidden sm:flex items-center gap-2">
           <button type="button" id="openNewTxBtn" class="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-sm font-medium shadow-sm transition flex items-center gap-1.5">
             <span>＋ 記一筆</span>
-            <kbd class="hidden md:inline-block text-[10px] bg-stone-700 px-1.5 py-0.5 rounded text-stone-300">N</kbd>
+            <kbd class="text-[10px] bg-stone-700 px-1.5 py-0.5 rounded text-stone-300">N</kbd>
           </button>
         </div>
       </div>
 
-      <!-- 卡片篩選分類標籤 -->
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
-        <div id="cardFilterTabs" class="inline-flex p-1 bg-stone-200/60 rounded-xl text-xs gap-1 self-start">
-          <button type="button" data-card-filter="all" class="card-filter-tab px-3 py-1 rounded-lg font-medium bg-white text-stone-900 shadow-xs transition">全部卡片</button>
-          <button type="button" data-card-filter="cash" class="card-filter-tab px-3 py-1 rounded-lg font-medium text-stone-600 hover:text-stone-900 transition">現金</button>
-          <button type="button" data-card-filter="bank" class="card-filter-tab px-3 py-1 rounded-lg font-medium text-stone-600 hover:text-stone-900 transition">銀行戶頭</button>
-          <button type="button" data-card-filter="credit" class="card-filter-tab px-3 py-1 rounded-lg font-medium text-stone-600 hover:text-stone-900 transition">信用卡</button>
-          <button type="button" data-card-filter="other" class="card-filter-tab px-3 py-1 rounded-lg font-medium text-stone-600 hover:text-stone-900 transition">電支/投資</button>
+      <!-- 卡片篩選標籤 -->
+      <div class="flex items-center justify-between gap-2 pt-0.5 overflow-x-auto no-scrollbar">
+        <div id="cardFilterTabs" class="inline-flex p-1 bg-stone-200/60 rounded-xl text-xs gap-1 shrink-0">
+          <button type="button" data-card-filter="all" class="card-filter-tab px-2.5 sm:px-3 py-1 rounded-lg font-medium bg-white text-stone-900 shadow-xs transition">全部</button>
+          <button type="button" data-card-filter="cash" class="card-filter-tab px-2.5 sm:px-3 py-1 rounded-lg font-medium text-stone-600 hover:text-stone-900 transition">現金</button>
+          <button type="button" data-card-filter="bank" class="card-filter-tab px-2.5 sm:px-3 py-1 rounded-lg font-medium text-stone-600 hover:text-stone-900 transition">銀行</button>
+          <button type="button" data-card-filter="credit" class="card-filter-tab px-2.5 sm:px-3 py-1 rounded-lg font-medium text-stone-600 hover:text-stone-900 transition">信用卡</button>
+          <button type="button" data-card-filter="other" class="card-filter-tab px-2.5 sm:px-3 py-1 rounded-lg font-medium text-stone-600 hover:text-stone-900 transition">電支/投資</button>
         </div>
-        <div class="text-[11px] text-stone-400">
-          虛線反灰卡片為「不計入總資產」獨立帳戶；已封存帳戶已全數自動隱藏
+        <div class="hidden md:block text-[11px] text-stone-400 truncate">
+          虛線卡片為獨立不計入淨資產帳戶；已封存帳戶已自動收合
         </div>
       </div>
 
-      <!-- 帳戶卡片橫向捲軸 -->
-      <div id="accountCardsContainer" class="flex gap-4 overflow-x-auto py-4 px-2 custom-scrollbar"></div>
+      <!-- 帳戶卡片橫向捲軸 (支援手機滑動吸附 snap) -->
+      <div id="accountCardsContainer" class="flex gap-3 sm:gap-4 overflow-x-auto py-3 px-1 custom-scrollbar snap-x-cards"></div>
     </section>
 
-    <!-- 當月收支指標與帳款統計 -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-      <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
-        <div class="text-xs font-medium text-stone-500 mb-1" id="statIncomeTitle">本月收入</div>
-        <div id="monthIncomeText" class="text-2xl font-bold text-emerald-600">$0</div>
+    <!-- 當月收支指標與帳款統計 (手機雙欄，桌面四欄) -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4">
+      <div class="bg-white p-3.5 sm:p-5 rounded-2xl border border-stone-200 shadow-xs">
+        <div class="text-[11px] sm:text-xs font-medium text-stone-500 mb-0.5" id="statIncomeTitle">本月收入</div>
+        <div id="monthIncomeText" class="text-lg sm:text-2xl font-bold text-emerald-600 truncate">$0</div>
       </div>
 
-      <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
-        <div class="text-xs font-medium text-stone-500 mb-1" id="statExpenseTitle">本月支出 (含手續費)</div>
-        <div id="monthExpenseText" class="text-2xl font-bold text-rose-600">$0</div>
+      <div class="bg-white p-3.5 sm:p-5 rounded-2xl border border-stone-200 shadow-xs">
+        <div class="text-[11px] sm:text-xs font-medium text-stone-500 mb-0.5" id="statExpenseTitle">本月支出</div>
+        <div id="monthExpenseText" class="text-lg sm:text-2xl font-bold text-rose-600 truncate">$0</div>
       </div>
 
-      <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
-        <div class="text-xs font-medium text-stone-500 mb-1">待收回應收帳款 (代墊)</div>
-        <div id="pendingReceivableText" class="text-2xl font-bold text-amber-600">$0</div>
-        <div id="overdueReceivableHint" class="text-[11px] text-rose-500 font-medium mt-1 hidden">⚠️ 有逾期未討回代墊款</div>
+      <div class="bg-white p-3.5 sm:p-5 rounded-2xl border border-stone-200 shadow-xs">
+        <div class="text-[11px] sm:text-xs font-medium text-stone-500 mb-0.5">待收代墊款</div>
+        <div id="pendingReceivableText" class="text-lg sm:text-2xl font-bold text-amber-600 truncate">$0</div>
+        <div id="overdueReceivableHint" class="text-[10px] text-rose-500 font-medium mt-0.5 hidden">⚠️ 有逾期</div>
       </div>
 
-      <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
-        <div class="text-xs font-medium text-stone-500 mb-1">待償還應付帳款 (借入)</div>
-        <div id="pendingPayableText" class="text-2xl font-bold text-cyan-600">$0</div>
-        <div id="overduePayableHint" class="text-[11px] text-rose-500 font-medium mt-1 hidden">⚠️ 有逾期未還項目</div>
+      <div class="bg-white p-3.5 sm:p-5 rounded-2xl border border-stone-200 shadow-xs">
+        <div class="text-[11px] sm:text-xs font-medium text-stone-500 mb-0.5">待還借入款</div>
+        <div id="pendingPayableText" class="text-lg sm:text-2xl font-bold text-cyan-600 truncate">$0</div>
+        <div id="overduePayableHint" class="text-[10px] text-rose-500 font-medium mt-0.5 hidden">⚠️ 有逾期</div>
       </div>
     </div>
 
     <!-- 儀表板圖表與收支交易明細 -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6" id="txSection">
-      <div class="lg:col-span-5 space-y-6">
-        <div class="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
-          <h2 class="text-sm font-bold text-stone-900 mb-4 flex items-center justify-between">
-            <span>支出類別分佈</span>
-            <span id="chartPeriodText" class="text-xs font-normal text-stone-400">當月統計</span>
-          </h2>
-          <div class="relative h-56 flex items-center justify-center">
-            <canvas id="categoryChart"></canvas>
-            <div id="noChartDataNotice" class="hidden absolute text-xs text-stone-400">尚無支出數據</div>
-          </div>
-        </div>
-
-        <div class="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
-          <h2 class="text-sm font-bold text-stone-900 mb-4 flex items-center justify-between">
-            <span>資產帳戶分佈</span>
-            <span class="text-xs font-normal text-stone-400">計入總資產者</span>
-          </h2>
-          <div class="relative h-56 flex items-center justify-center">
-            <canvas id="accountAssetChart"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <div class="lg:col-span-7 bg-white p-6 rounded-2xl border border-stone-200 shadow-sm flex flex-col">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6" id="txSection">
+      <!-- 左右/上下佈局：手機上明細優先查看，圖表移至其後或折疊 -->
+      <div class="lg:col-span-7 bg-white p-4 sm:p-6 rounded-2xl border border-stone-200 shadow-sm flex flex-col order-1 lg:order-2">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2.5 mb-3.5">
           <div class="flex items-center gap-2">
-            <h2 class="text-base font-bold text-stone-900">收支、轉帳與帳款明細</h2>
-            <div id="activeFilterBadge" class="hidden items-center gap-1 text-[11px] bg-stone-900 text-white px-2.5 py-0.5 rounded-full font-medium cursor-pointer transition hover:bg-stone-800" title="點擊清除篩選">
+            <h2 class="text-sm sm:text-base font-bold text-stone-900">收支與帳款明細</h2>
+            <div id="activeFilterBadge" class="hidden items-center gap-1 text-[10px] sm:text-[11px] bg-stone-900 text-white px-2 py-0.5 rounded-full font-medium cursor-pointer" title="點擊清除篩選">
               <span id="activeFilterName">篩選中</span>
               <span>✕</span>
             </div>
           </div>
 
-          <div class="flex items-center gap-2 w-full sm:w-auto flex-wrap">
-            <label class="inline-flex items-center gap-1 text-[11px] text-stone-500 cursor-pointer bg-stone-100 px-2 py-1.5 rounded-lg border border-stone-200">
-              <input type="checkbox" id="chkIncludeArchivedInTx" class="rounded border-stone-300 text-stone-900">
-              <span>含已封存</span>
+          <div class="flex items-center gap-1.5 w-full sm:w-auto justify-between sm:justify-end">
+            <label class="inline-flex items-center gap-1 text-[11px] text-stone-600 cursor-pointer bg-stone-100 px-2 py-1.5 rounded-lg border border-stone-200 shrink-0">
+              <input type="checkbox" id="chkIncludeArchivedInTx" class="rounded border-stone-300 text-stone-900 w-3.5 h-3.5">
+              <span>含封存</span>
             </label>
-            <select id="filterAccountSelect" class="text-xs border border-stone-200 rounded-lg px-2.5 py-1.5 bg-stone-50 text-stone-700 outline-none max-w-[180px]">
+            <select id="filterAccountSelect" class="text-xs border border-stone-200 rounded-lg px-2 py-1.5 bg-stone-50 text-stone-700 outline-none max-w-[140px] sm:max-w-[180px] shrink-0">
               <option value="all">所有帳戶</option>
             </select>
-            <button type="button" id="exportCsvBtn" class="flex items-center gap-1 text-xs border border-stone-200 hover:bg-stone-50 text-stone-600 px-3 py-1.5 rounded-lg transition" title="匯出 CSV">
-              <span>匯出 CSV</span>
+            <button type="button" id="exportCsvBtn" class="text-xs border border-stone-200 hover:bg-stone-50 text-stone-600 px-2.5 py-1.5 rounded-lg transition shrink-0" title="匯出 CSV">
+              匯出
             </button>
           </div>
         </div>
 
-        <div class="flex-1 overflow-y-auto max-h-[580px] custom-scrollbar pr-1">
+        <div class="flex-1 overflow-y-auto max-h-[520px] custom-scrollbar pr-0.5">
           <ul id="txList" class="divide-y divide-stone-100"></ul>
+        </div>
+      </div>
+
+      <div class="lg:col-span-5 space-y-4 sm:space-y-6 order-2 lg:order-1">
+        <div class="bg-white p-4 sm:p-6 rounded-2xl border border-stone-200 shadow-sm">
+          <h2 class="text-xs sm:text-sm font-bold text-stone-900 mb-3 flex items-center justify-between">
+            <span>支出類別分佈</span>
+            <span id="chartPeriodText" class="text-[10px] sm:text-xs font-normal text-stone-400">當月統計</span>
+          </h2>
+          <div class="relative h-48 sm:h-56 flex items-center justify-center">
+            <canvas id="categoryChart"></canvas>
+            <div id="noChartDataNotice" class="hidden absolute text-xs text-stone-400">尚無支出數據</div>
+          </div>
+        </div>
+
+        <div class="bg-white p-4 sm:p-6 rounded-2xl border border-stone-200 shadow-sm">
+          <h2 class="text-xs sm:text-sm font-bold text-stone-900 mb-3 flex items-center justify-between">
+            <span>資產帳戶分佈</span>
+            <span class="text-[10px] sm:text-xs font-normal text-stone-400">計入淨資產者</span>
+          </h2>
+          <div class="relative h-48 sm:h-56 flex items-center justify-center">
+            <canvas id="accountAssetChart"></canvas>
+          </div>
         </div>
       </div>
     </div>
   </main>
+
+  <!-- 手機專屬底部快速操作懸浮鈕 (FAB) -->
+  <div class="sm:hidden fixed bottom-5 right-4 z-40 flex items-center gap-2">
+    <button type="button" id="mobileFabBtn" class="flex items-center gap-1.5 px-4 py-3 bg-stone-900 hover:bg-stone-800 text-white rounded-full shadow-xl font-semibold text-sm active:scale-95 transition-transform">
+      <span class="text-base font-bold">＋</span>
+      <span>記一筆</span>
+    </button>
+  </div>
 
   <!-- ================= 彈窗 1：新增/編輯記帳 Modal ================= -->
   <div id="txModal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
@@ -225,7 +259,7 @@
           <button type="button" id="btnTypeExpense" class="tx-type-btn py-1.5 font-semibold rounded-lg bg-white shadow-sm text-stone-900 transition">支出</button>
           <button type="button" id="btnTypeIncome" class="tx-type-btn py-1.5 font-semibold rounded-lg text-stone-500 hover:text-stone-900 transition">收入</button>
           <button type="button" id="btnTypeTransfer" class="tx-type-btn py-1.5 font-semibold rounded-lg text-stone-500 hover:text-stone-900 transition">轉帳</button>
-          <button type="button" id="btnTypeReceivable" class="tx-type-btn py-1.5 font-semibold rounded-lg text-stone-500 hover:text-stone-900 transition">應收(借出)</button>
+          <button type="button" id="btnTypeReceivable" class="tx-type-btn py-1.5 font-semibold rounded-lg text-stone-500 hover:text-stone-900 transition">應收(代墊)</button>
           <button type="button" id="btnTypePayable" class="tx-type-btn py-1.5 font-semibold rounded-lg text-stone-500 hover:text-stone-900 transition">應付(借入)</button>
         </div>
 
@@ -254,7 +288,7 @@
             </div>
           </div>
           <div>
-            <label class="block text-xs font-medium text-stone-600 mb-1">轉帳本金金額</label>
+            <label class="block text-xs font-medium text-stone-600 mb-1">轉帳金額</label>
             <input type="number" id="txTransferAmount" step="any" placeholder="0.00" class="w-full border border-stone-200 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-stone-900/10 font-medium">
           </div>
         </div>
@@ -294,14 +328,14 @@
         <div id="expenseFeeWrapper">
           <label class="block text-[11px] font-medium text-stone-600 mb-1 flex items-center justify-between">
             <span>附加手續費 (選填)</span>
-            <span class="text-[10px] text-stone-400">例如：跨行交易費 / 刷卡外幣手續費</span>
+            <span class="text-[10px] text-stone-400">例如：跨行交易費 / 刷卡手續費</span>
           </label>
           <input type="number" id="txExpenseFee" step="any" placeholder="0 (直接連同扣款)" class="w-full border border-stone-200 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-stone-900/10">
         </div>
 
         <div>
           <label class="block text-xs font-medium text-stone-600 mb-1">備註說明 (選填)</label>
-          <input type="text" id="txNote" placeholder="例如：代墊高鐵車票、聚餐代付..." class="w-full border border-stone-200 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-stone-900/10">
+          <input type="text" id="txNote" placeholder="例如：代墊車票、午餐代付..." class="w-full border border-stone-200 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-stone-900/10">
         </div>
 
         <div class="flex items-center justify-between pt-1 border-t border-stone-100">
@@ -356,7 +390,7 @@
 
         <div>
           <label class="block text-xs font-medium text-stone-600 mb-1">結清備註 (選填)</label>
-          <input type="text" id="settleNote" placeholder="例如：LINE Pay 轉入還清、現金當面結清..." class="w-full border border-stone-200 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-stone-900/10">
+          <input type="text" id="settleNote" placeholder="例如：街口轉入還清、現金當面結清..." class="w-full border border-stone-200 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-stone-900/10">
         </div>
 
         <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow transition">
@@ -366,13 +400,13 @@
     </div>
   </div>
 
-  <!-- ================= 彈窗 3：帳戶管理 Modal (含封存專區) ================= -->
+  <!-- ================= 彈窗 3：帳戶管理 Modal (含排序與封存專區) ================= -->
   <div id="accountModal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white w-full max-w-2xl rounded-2xl p-6 shadow-2xl border border-stone-100 max-h-[90vh] overflow-y-auto custom-scrollbar">
       <div class="flex justify-between items-center mb-5 border-b border-stone-100 pb-3">
         <div>
           <h3 class="text-base font-bold text-stone-900">帳戶管理與自訂排序</h3>
-          <p class="text-xs text-stone-500">可自由調整排序、設定獨立不計入淨資產，或將停用帳戶封存</p>
+          <p class="text-xs text-stone-500">支援順序微調、總額排除設定與閒置帳戶安全封存</p>
         </div>
         <button type="button" id="closeAccountModalBtn" class="p-1 text-stone-400 hover:text-stone-600 rounded-lg text-lg font-bold">✕</button>
       </div>
@@ -440,7 +474,7 @@
         <div class="p-3 bg-white rounded-lg border border-stone-200 flex items-center justify-between">
           <div>
             <div class="text-xs font-bold text-stone-800">計入首頁總淨資產 (Total Net Worth)</div>
-            <div class="text-[11px] text-stone-400">若取消勾選，首頁卡片將以虛線反灰顯示且不計入總額</div>
+            <div class="text-[11px] text-stone-400">若關閉，此卡片將轉為虛線半透明，且結餘不計入頂部總資產</div>
           </div>
           <label class="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" id="accIncludeNetWorth" checked class="sr-only peer">
@@ -468,26 +502,24 @@
         </button>
       </form>
 
-      <!-- 活躍中帳戶清單 -->
-      <div>
-        <div class="flex justify-between items-center mb-3">
-          <h4 class="text-xs font-bold text-stone-700 uppercase tracking-wider">現有活躍帳戶清單</h4>
+      <!-- 現有活躍帳戶清單 -->
+      <div class="space-y-4">
+        <div class="flex justify-between items-center">
+          <h4 class="text-xs font-bold text-stone-700 uppercase tracking-wider">活躍帳戶清單 (可微調順序與封存)</h4>
         </div>
         <div id="modalAccountList" class="space-y-4"></div>
       </div>
 
-      <!-- 封存帳戶專區 (折疊) -->
-      <div class="mt-8 pt-6 border-t border-stone-200">
-        <details class="group">
-          <summary class="flex justify-between items-center cursor-pointer text-xs font-bold text-stone-600 hover:text-stone-900 select-none">
-            <span class="flex items-center gap-1.5">
-              <span>📦 已封存帳戶專區</span>
-              <span id="archivedCountBadge" class="bg-stone-200 text-stone-700 text-[10px] px-1.5 py-0.2 rounded-full">0</span>
-            </span>
-            <span class="text-stone-400 group-open:rotate-180 transition-transform">▼</span>
-          </summary>
-          <div id="archivedAccountList" class="mt-3 space-y-2"></div>
-        </details>
+      <!-- 封存專區 -->
+      <div class="mt-8 pt-6 border-t border-stone-200 space-y-3">
+        <div class="flex justify-between items-center">
+          <h4 class="text-xs font-bold text-stone-600 uppercase tracking-wider flex items-center gap-1.5">
+            <span>📦 已封存帳戶 (停用/剪卡)</span>
+            <span id="archivedCountBadge" class="bg-stone-200 text-stone-700 text-[10px] px-1.5 py-0.2 rounded-full font-bold">0</span>
+          </h4>
+          <span class="text-[10px] text-stone-400">封存項目不顯示於主頁且不計入總額，可隨時解封</span>
+        </div>
+        <div id="modalArchivedAccountList" class="space-y-2"></div>
       </div>
     </div>
   </div>
@@ -505,7 +537,7 @@
 
       <form id="adjustForm" class="space-y-4">
         <div>
-          <label class="block text-xs font-medium text-stone-600 mb-1">選擇調整之帳戶 / 子帳戶</label>
+          <label class="block text-xs font-medium text-stone-600 mb-1">選擇調整之帳戶</label>
           <select id="adjustAccountSelect" class="w-full border border-stone-200 rounded-xl p-2.5 text-xs bg-stone-50 outline-none"></select>
         </div>
 
@@ -563,13 +595,13 @@
     </div>
   </div>
 
-  <!-- ================= 彈窗 6：信用卡帳單專屬對帳 Modal (含 Email 發送功能) ================= -->
+  <!-- ================= 彈窗 6：信用卡帳單專屬對帳 Modal ================= -->
   <div id="creditReconcileModal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white w-full max-w-2xl rounded-2xl p-6 shadow-2xl border border-stone-100 max-h-[90vh] overflow-y-auto custom-scrollbar">
       <div class="flex justify-between items-center mb-4 border-b border-stone-100 pb-3">
         <div>
           <h3 id="reconcileCardTitle" class="text-base font-bold text-stone-900">信用卡帳單對帳與期別核對</h3>
-          <p class="text-xs text-stone-500">核對刷卡項目，並可一鍵寄送帳單備忘通知至您的電子信箱</p>
+          <p class="text-xs text-stone-500">核對每筆刷卡是否已在帳單上，遇請款延遲可一鍵移至下期</p>
         </div>
         <button type="button" id="closeReconcileModalBtn" class="p-1 text-stone-400 hover:text-stone-600 rounded-lg text-lg font-bold">✕</button>
       </div>
@@ -582,14 +614,9 @@
             <span class="text-xs font-normal text-stone-400">(已核對: <span id="reconcileCheckedAmount">$0</span>)</span>
           </div>
         </div>
-        <div class="flex items-center gap-2">
-          <button type="button" id="btnSendBillEmail" class="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-semibold rounded-xl border border-stone-300 transition flex items-center gap-1" title="寄送帳單明細到 Email">
-            <span>✉️ 寄送帳單提醒</span>
-          </button>
-          <button type="button" id="btnOpenPayModal" class="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold rounded-xl shadow transition">
-            繳納此期帳單
-          </button>
-        </div>
+        <button type="button" id="btnOpenPayModal" class="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold rounded-xl shadow transition">
+          繳納此期帳單
+        </button>
       </div>
 
       <div class="space-y-2">
@@ -658,7 +685,7 @@
       <div class="space-y-4 text-xs">
         <div class="p-4 bg-stone-50 rounded-xl border border-stone-200 space-y-2">
           <div class="font-bold text-stone-800">下載本機資料備份檔 (JSON)</div>
-          <p class="text-stone-500 text-[11px]">將全部帳戶、收支、借貸、已封存項目與分類完整打包儲存至電腦。</p>
+          <p class="text-stone-500 text-[11px]">將全部帳戶、收支、借貸與分類打包儲存至電腦。</p>
           <button type="button" id="btnDownloadBackup" class="w-full py-2 bg-stone-900 hover:bg-stone-800 text-white font-medium rounded-lg transition">
             匯出並下載備份檔案 (.json)
           </button>
@@ -670,45 +697,6 @@
           <input type="file" id="fileRestoreInput" accept=".json" class="block w-full text-xs text-stone-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-stone-200 file:text-stone-700 hover:file:bg-stone-300">
         </div>
       </div>
-    </div>
-  </div>
-
-  <!-- ================= 彈窗 8：郵件提醒設定 Modal ================= -->
-  <div id="emailSettingModal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl border border-stone-100">
-      <div class="flex justify-between items-center mb-4">
-        <div>
-          <h3 class="text-base font-bold text-stone-900">帳單郵件提醒設定</h3>
-          <p class="text-[11px] text-stone-500">設定您的收件信箱與發信模式</p>
-        </div>
-        <button type="button" id="closeEmailSettingBtn" class="p-1 text-stone-400 hover:text-stone-600 rounded-lg text-lg font-bold">✕</button>
-      </div>
-
-      <form id="emailSettingForm" class="space-y-4 text-xs">
-        <div>
-          <label class="block font-medium text-stone-600 mb-1">接收通知之 Email 信箱</label>
-          <input type="email" id="cfgEmailAddress" placeholder="例如：your-name@gmail.com" class="w-full border border-stone-200 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-stone-900/10">
-        </div>
-
-        <div>
-          <label class="block font-medium text-stone-600 mb-1">寄送模式</label>
-          <select id="cfgEmailMode" class="w-full border border-stone-200 rounded-xl p-2.5 text-xs bg-stone-50 outline-none">
-            <option value="mailto">本機一鍵開啟 Email 軟體 (零設定、免註冊)</option>
-            <option value="emailjs">EmailJS 雲端自動直寄 (需填寫 Service ID)</option>
-          </select>
-        </div>
-
-        <div id="emailJsFields" class="hidden p-3 bg-stone-50 rounded-xl border border-stone-200 space-y-2">
-          <div class="text-[11px] text-stone-500">免後端 EmailJS 服務參數 (選用)：</div>
-          <input type="text" id="cfgEmailJsService" placeholder="Service ID" class="w-full border border-stone-200 rounded-lg p-2 text-xs bg-white outline-none">
-          <input type="text" id="cfgEmailJsTemplate" placeholder="Template ID" class="w-full border border-stone-200 rounded-lg p-2 text-xs bg-white outline-none">
-          <input type="text" id="cfgEmailJsPublicKey" placeholder="Public Key" class="w-full border border-stone-200 rounded-lg p-2 text-xs bg-white outline-none">
-        </div>
-
-        <button type="submit" class="w-full py-2.5 bg-stone-900 hover:bg-stone-800 text-white font-semibold rounded-xl transition shadow">
-          儲存提醒設定
-        </button>
-      </form>
     </div>
   </div>
 
@@ -777,19 +765,6 @@
         categories = DEFAULT_CATEGORIES;
       }
 
-      let emailConfig = {
-        email: '',
-        mode: 'mailto',
-        serviceId: '',
-        templateId: '',
-        publicKey: ''
-      };
-      try {
-        emailConfig = JSON.parse(localStorage.getItem('my_tracker_email_cfg')) || emailConfig;
-      } catch (e) {
-        // default
-      }
-
       let currentTxType = 'expense';
       let managingCatType = 'expense';
       let currentFilterAccountId = 'all';
@@ -827,13 +802,11 @@
       const creditPayModal = document.getElementById('creditPayModal');
       const creditPayForm = document.getElementById('creditPayForm');
       const backupModal = document.getElementById('backupModal');
-      const emailSettingModal = document.getElementById('emailSettingModal');
 
       const txForm = document.getElementById('txForm');
       const accountForm = document.getElementById('accountForm');
       const adjustForm = document.getElementById('adjustForm');
       const newCategoryForm = document.getElementById('newCategoryForm');
-      const emailSettingForm = document.getElementById('emailSettingForm');
 
       const editingAccountIdInput = document.getElementById('editingAccountId');
       const accountFormTitleText = document.getElementById('accountFormTitleText');
@@ -867,10 +840,9 @@
       const creditCardSpecificFields = document.getElementById('creditCardSpecificFields');
       const accountCardsContainer = document.getElementById('accountCardsContainer');
       const modalAccountList = document.getElementById('modalAccountList');
-      const archivedAccountList = document.getElementById('archivedAccountList');
+      const modalArchivedAccountList = document.getElementById('modalArchivedAccountList');
       const archivedCountBadge = document.getElementById('archivedCountBadge');
       const filterAccountSelect = document.getElementById('filterAccountSelect');
-      const chkIncludeArchivedInTx = document.getElementById('chkIncludeArchivedInTx');
       const activeFilterBadge = document.getElementById('activeFilterBadge');
       const activeFilterName = document.getElementById('activeFilterName');
       const txList = document.getElementById('txList');
@@ -900,7 +872,6 @@
           accounts: accounts,
           transactions: transactions,
           categories: categories,
-          emailConfig: emailConfig,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true }).catch(err => console.error("雲端同步失敗:", err));
       }
@@ -910,10 +881,15 @@
         db.collection('user_data').doc(currentUser.uid).get().then(doc => {
           if (doc.exists) {
             const data = doc.data();
-            if (data.accounts && Array.isArray(data.accounts)) accounts = data.accounts;
+            if (data.accounts && Array.isArray(data.accounts)) {
+              accounts = data.accounts;
+              accounts.forEach(a => {
+                if (typeof a.includeNetWorth === 'undefined') a.includeNetWorth = true;
+                if (typeof a.isArchived === 'undefined') a.isArchived = false;
+              });
+            }
             if (data.transactions && Array.isArray(data.transactions)) transactions = data.transactions;
             if (data.categories) categories = data.categories;
-            if (data.emailConfig) emailConfig = data.emailConfig;
             saveLocal();
             renderAll();
           } else {
@@ -955,7 +931,10 @@
 
       if (btnLoginGoogle) {
         btnLoginGoogle.onclick = () => {
-          if (!auth) { alert("Firebase 尚未正確設定！"); return; }
+          if (!auth) {
+            alert("Firebase 尚未正確設定！");
+            return;
+          }
           const provider = new firebase.auth.GoogleAuthProvider();
           auth.signInWithPopup(provider).catch(err => alert("登入失敗: " + err.message));
         };
@@ -1072,13 +1051,13 @@
           const isExcludedFromNetWorth = rootAcc.includeNetWorth === false;
           const card = document.createElement('div');
           
-          // 樣式微調：不計入資產的卡片自動套用反灰、虛線邊框及低對比度
-          card.className = 'flex-shrink-0 w-80 p-5 rounded-2xl transition-all duration-150 cursor-pointer group flex flex-col justify-between ' +
+          // 手機與桌面自適應寬度與 Snap
+          card.className = 'snap-card shrink-0 w-[270px] sm:w-80 p-4 sm:p-5 rounded-2xl transition-all duration-150 cursor-pointer group flex flex-col justify-between ' +
             (isSelected 
-              ? 'border-2 border-stone-900 shadow-xl -translate-y-1 bg-white' 
+              ? 'border-2 border-stone-900 shadow-xl -translate-y-0.5 bg-white' 
               : (isExcludedFromNetWorth 
                   ? 'border-2 border-dashed border-stone-300 bg-stone-100/70 opacity-60 hover:opacity-100 hover:border-stone-400' 
-                  : 'border border-stone-200 bg-white shadow-sm hover:border-stone-400 hover:shadow-md'));
+                  : 'border border-stone-200 bg-white shadow-xs hover:border-stone-400 hover:shadow-md'));
           card.setAttribute('data-card-account-id', rootAcc.id);
 
           const isCredit = rootAcc.type === 'credit';
@@ -1086,26 +1065,26 @@
 
           let childrenHtml = '';
           if (hasChildren) {
-            childrenHtml = '<div class="mt-3.5 pt-2.5 border-t border-stone-100 space-y-1.5">' +
+            childrenHtml = '<div class="mt-3 pt-2 border-t border-stone-100 space-y-1.5">' +
               '<div class="text-[10px] font-semibold text-stone-400 uppercase tracking-wider flex justify-between items-center">' +
                 '<span>分戶 / 子卡明細</span>' +
-                '<span class="text-[9px] text-stone-400">點擊可篩選</span>' +
+                '<span class="text-[9px] text-stone-400">點擊篩選</span>' +
               '</div>' +
               children.map(child => {
                 const childBal = balances[child.id] || 0;
                 const isChildSelected = currentFilterAccountId === child.id;
                 return '<div data-child-card-id="' + child.id + '" class="child-card-badge flex justify-between items-center text-xs ' + 
                   (isChildSelected ? 'bg-stone-900 text-white font-semibold' : 'bg-stone-50 hover:bg-stone-100 text-stone-700') + 
-                  ' px-2.5 py-1.5 rounded-xl border border-stone-200/50 transition">' +
-                  '<span class="truncate flex items-center gap-1.5">' +
-                    '<span class="w-1.5 h-1.5 rounded-full ' + (isChildSelected ? 'bg-white' : 'bg-stone-400') + '"></span>' +
-                    child.name +
+                  ' px-2.5 py-1.5 rounded-xl border border-stone-200/50 transition active:scale-98">' +
+                  '<span class="truncate flex items-center gap-1.5 pr-1">' +
+                    '<span class="w-1.5 h-1.5 rounded-full shrink-0 ' + (isChildSelected ? 'bg-white' : 'bg-stone-400') + '"></span>' +
+                    '<span class="truncate">' + child.name + '</span>' +
                   '</span>' +
-                  '<div class="flex items-center gap-1.5">' +
+                  '<div class="flex items-center gap-1.5 shrink-0">' +
                     '<span class="' + (isChildSelected ? 'text-white' : (childBal < 0 ? 'text-rose-500 font-medium' : 'text-stone-700')) + '">' +
                       child.currency + ' ' + childBal.toLocaleString() +
                     '</span>' +
-                    '<button type="button" data-quick-adjust-id="' + child.id + '" class="btn-card-adjust ' + (isChildSelected ? 'text-stone-300 hover:text-white' : 'text-stone-400 hover:text-stone-800') + ' text-[10px]" title="子帳戶餘額調整">⚙️</button>' +
+                    '<button type="button" data-quick-adjust-id="' + child.id + '" class="btn-card-adjust p-1 ' + (isChildSelected ? 'text-stone-300 hover:text-white' : 'text-stone-400 hover:text-stone-800') + ' text-[10px]" title="子帳戶餘額調整">⚙️</button>' +
                   '</div>' +
                 '</div>';
               }).join('') +
@@ -1115,39 +1094,39 @@
           card.innerHTML = '<div>' +
             '<div class="flex items-center justify-between mb-2">' +
               '<div class="flex items-center gap-1.5">' +
-                '<span class="inline-flex items-center gap-1 text-[11px] font-medium text-stone-500 bg-white/80 px-2 py-0.5 rounded-full border border-stone-200/50">' +
+                '<span class="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-medium text-stone-500 bg-white/80 px-2 py-0.5 rounded-full border border-stone-200/50">' +
                   typeBadge + (hasChildren ? ' (母總戶)' : '') +
                 '</span>' +
-                (isExcludedFromNetWorth ? '<span class="inline-flex items-center text-[10px] text-stone-500 bg-stone-200/80 px-1.5 py-0.5 rounded font-medium" title="此帳戶不計入頂部總資產">🔒 獨立不計</span>' : '') +
+                (isExcludedFromNetWorth ? '<span class="inline-flex items-center text-[9px] sm:text-[10px] text-stone-500 bg-stone-200/80 px-1.5 py-0.5 rounded font-medium" title="此帳戶不計入頂部總資產">🔒 獨立不計</span>' : '') +
               '</div>' +
-              '<div class="flex items-center gap-1.5">' +
-                (isSelected ? '<span class="text-[10px] bg-stone-900 text-white px-2 py-0.5 rounded-md font-medium tracking-tight">檢視中</span>' : '') +
-                '<span class="text-[11px] font-bold text-stone-400">' + rootAcc.currency + '</span>' +
-                (isCredit ? '<button type="button" data-open-reconcile-id="' + rootAcc.id + '" class="btn-card-reconcile text-[10px] text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded border border-indigo-200 transition font-semibold" title="信用卡帳單對帳與期別調整">📋 帳單對帳</button>' : '') +
-                '<button type="button" data-quick-adjust-id="' + rootAcc.id + '" class="btn-card-adjust text-[10px] text-stone-500 hover:text-stone-800 flex items-center gap-0.5 bg-white/80 px-1.5 py-0.5 rounded border border-stone-200 transition" title="餘額調整">⚙️ 調整</button>' +
+              '<div class="flex items-center gap-1">' +
+                (isSelected ? '<span class="text-[9px] sm:text-[10px] bg-stone-900 text-white px-1.5 py-0.5 rounded font-medium">檢視中</span>' : '') +
+                '<span class="text-[10px] sm:text-[11px] font-bold text-stone-400">' + rootAcc.currency + '</span>' +
+                (isCredit ? '<button type="button" data-open-reconcile-id="' + rootAcc.id + '" class="btn-card-reconcile text-[10px] text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded border border-indigo-200 transition font-semibold" title="信用卡帳單對帳">📋 對帳</button>' : '') +
+                '<button type="button" data-quick-adjust-id="' + rootAcc.id + '" class="btn-card-adjust text-[10px] text-stone-500 hover:text-stone-800 flex items-center gap-0.5 bg-white/80 px-2 py-1 rounded border border-stone-200 transition" title="餘額調整">⚙️ 調整</button>' +
               '</div>' +
             '</div>' +
             '<div class="text-sm font-bold text-stone-800 truncate group-hover:text-stone-900">' +
               rootAcc.name +
             '</div>' +
           '</div>' +
-          '<div class="mt-3">' +
+          '<div class="mt-2.5 sm:mt-3">' +
             '<div class="flex items-baseline justify-between">' +
-              '<div class="text-xl font-extrabold ' + (isCredit && isNegative ? 'text-rose-500' : 'text-stone-900') + '">' +
+              '<div class="text-lg sm:text-xl font-extrabold ' + (isCredit && isNegative ? 'text-rose-500' : 'text-stone-900') + '">' +
                 rootAcc.currency + ' ' + groupTotal.toLocaleString() +
               '</div>' +
               (isCredit && rootAcc.creditLimit ? '<div class="text-[10px] text-stone-400">額度 ' + Number(rootAcc.creditLimit).toLocaleString() + '</div>' : '') +
             '</div>' +
             (isCredit && (rootAcc.statementDay || rootAcc.creditLimit) ? 
               '<div class="text-[10px] text-stone-400 mt-1 flex items-center justify-between">' +
-                '<span>結帳日: 每月 ' + (rootAcc.statementDay || '--') + ' 號</span>' +
-                '<span>' + (rootAcc.dueDay ? '繳款期限: ' + rootAcc.dueDay + ' 號' : '') + '</span>' +
+                '<span>結帳日: ' + (rootAcc.statementDay || '--') + ' 號</span>' +
+                '<span>' + (rootAcc.dueDay ? '期限: ' + rootAcc.dueDay + ' 號' : '') + '</span>' +
               '</div>' +
               (rootAcc.creditLimit ? 
-                '<div class="w-full bg-stone-100 rounded-full h-1.5 mt-1.5 overflow-hidden">' +
+                '<div class="w-full bg-stone-100 rounded-full h-1.5 mt-1 overflow-hidden">' +
                   '<div class="bg-stone-800 h-1.5 rounded-full" style="width: ' + Math.min(100, Math.max(0, (Math.abs(groupTotal) / rootAcc.creditLimit) * 100)) + '%"></div>' +
                 '</div>' +
-                '<div class="text-[9px] text-stone-400 mt-0.5 text-right">剩餘可用額度: $' + Math.max(0, rootAcc.creditLimit + groupTotal).toLocaleString() + '</div>' : '') 
+                '<div class="text-[9px] text-stone-400 mt-0.5 text-right">可用: $' + Math.max(0, rootAcc.creditLimit + groupTotal).toLocaleString() + '</div>' : '') 
               : (!hasChildren ? '<div class="text-[10px] text-stone-400 mt-1">初始結餘: ' + Number(rootAcc.initialBalance).toLocaleString() + '</div>' : '')) +
             childrenHtml +
           '</div>';
@@ -1166,8 +1145,9 @@
       }
 
       function renderAccountOptions() {
-        // 記帳下拉選單：只顯示活躍中（未封存）的帳戶
+        // 記帳與轉帳下拉選單：完全排除已封存帳戶
         const activeRoots = accounts.filter(a => isRootAccount(a) && !a.isArchived);
+
         let formSelectHtml = '';
         activeRoots.forEach(root => {
           const children = accounts.filter(a => a.parentId === root.id && !a.isArchived);
@@ -1194,27 +1174,24 @@
           ).join('');
         }
 
-        // 明細頁頂部篩選下拉：根據是否勾選「含已封存」來列出
-        const includeArchivedInFilter = chkIncludeArchivedInTx && chkIncludeArchivedInTx.checked;
-        const filterRoots = accounts.filter(a => isRootAccount(a) && (includeArchivedInFilter || !a.isArchived));
-
+        // 篩選下拉清單
         let filterOptionsHtml = '<option value="all">所有帳戶</option>';
-        filterRoots.forEach(root => {
+        activeRoots.forEach(root => {
           const isRootSelected = currentFilterAccountId === root.id;
-          const children = accounts.filter(a => a.parentId === root.id && (includeArchivedInFilter || !a.isArchived));
+          const children = accounts.filter(a => a.parentId === root.id && !a.isArchived);
 
-          const archiveTag = root.isArchived ? ' [已封存]' : '';
           if (children.length > 0) {
-            filterOptionsHtml += '<option value="' + root.id + '" ' + (isRootSelected ? 'selected' : '') + '>' + root.name + archiveTag + ' (全部子卡/分戶)</option>' +
-              children.map(c => '<option value="' + c.id + '" ' + (currentFilterAccountId === c.id ? 'selected' : '') + '> └─ ' + c.name + (c.isArchived ? ' [已封存]' : '') + '</option>').join('');
+            filterOptionsHtml += '<option value="' + root.id + '" ' + (isRootSelected ? 'selected' : '') + '>' + root.name + ' (全部子卡/分戶)</option>' +
+              children.map(c => '<option value="' + c.id + '" ' + (currentFilterAccountId === c.id ? 'selected' : '') + '> └─ ' + c.name + '</option>').join('');
           } else {
-            filterOptionsHtml += '<option value="' + root.id + '" ' + (isRootSelected ? 'selected' : '') + '>' + root.name + archiveTag + '</option>';
+            filterOptionsHtml += '<option value="' + root.id + '" ' + (isRootSelected ? 'selected' : '') + '>' + root.name + '</option>';
           }
         });
         if (filterAccountSelect) filterAccountSelect.innerHTML = filterOptionsHtml;
 
+        // 母帳戶選取下拉
         const currentEditingId = editingAccountIdInput ? editingAccountIdInput.value : '';
-        const eligibleParents = accounts.filter(a => isRootAccount(a) && a.id !== currentEditingId && !a.isArchived);
+        const eligibleParents = accounts.filter(a => isRootAccount(a) && !a.isArchived && a.id !== currentEditingId);
         const savedSelectedParent = accParentSelect ? accParentSelect.value : '';
         if (accParentSelect) {
           accParentSelect.innerHTML = '<option value="">獨立帳戶 / 主帳戶 (無母帳戶)</option>' +
@@ -1241,7 +1218,7 @@
           }
         }
 
-        // 渲染「帳戶管理彈窗」中的活躍列表
+        // 渲染帳戶管理清單 (活躍清單 vs 封存專區)
         const activeRootsForModal = accounts.filter(a => isRootAccount(a) && !a.isArchived);
         const typeGroups = [
           { key: 'cash', title: '💵 現金皮夾', items: activeRootsForModal.filter(r => r.type === 'cash') },
@@ -1268,15 +1245,15 @@
                         '<div class="flex items-center gap-1.5">' +
                           '<span class="font-bold text-stone-900 text-[13px] truncate">' + root.name + '</span>' +
                           '<span class="text-[10px] bg-stone-100 text-stone-600 px-1.5 py-0.5 rounded">' + root.type + '</span>' +
-                          (isExcluded ? '<span class="text-[10px] bg-stone-200 text-stone-600 px-1.5 py-0.5 rounded font-medium">獨立不計</span>' : '') +
+                          (isExcluded ? '<span class="text-[10px] bg-stone-200/90 text-stone-700 font-semibold px-1.5 py-0.5 rounded border border-stone-300">獨立不計</span>' : '') +
                         '</div>' +
                         '<div class="text-[11px] text-stone-400 mt-0.5">' + root.currency + ' · 初始 $' + Number(root.initialBalance).toLocaleString() + '</div>' +
                       '</div>' +
                       '<div class="flex items-center gap-1 flex-shrink-0">' +
-                        '<button type="button" data-move-up="' + root.id + '" class="btn-move-acc px-2 py-1 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded border border-stone-200 text-xs font-bold">↑</button>' +
-                        '<button type="button" data-move-down="' + root.id + '" class="btn-move-acc px-2 py-1 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded border border-stone-200 text-xs font-bold">↓</button>' +
-                        '<button type="button" data-edit-id="' + root.id + '" class="btn-edit-account px-2 py-1 text-xs font-medium text-stone-700 bg-white hover:bg-stone-100 border border-stone-200 rounded-lg shadow-sm transition ml-1">修改</button>' +
-                        '<button type="button" data-archive-id="' + root.id + '" class="btn-archive-acc px-2 py-1 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg shadow-sm transition" title="封存此帳戶，日後可隨時解封">封存</button>' +
+                        '<button type="button" data-move-up="' + root.id + '" class="btn-move-acc px-2 py-1 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded border border-stone-200 text-xs font-bold" title="往上移">↑</button>' +
+                        '<button type="button" data-move-down="' + root.id + '" class="btn-move-acc px-2 py-1 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded border border-stone-200 text-xs font-bold" title="往下移">↓</button>' +
+                        '<button type="button" data-edit-id="' + root.id + '" class="btn-edit-account px-2.5 py-1 text-xs font-medium text-stone-700 bg-white hover:bg-stone-100 border border-stone-200 rounded-lg shadow-sm transition ml-1">修改</button>' +
+                        '<button type="button" data-archive-id="' + root.id + '" class="btn-archive-acc px-2.5 py-1 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg shadow-sm transition" title="封存此帳戶，日後可還原">封存</button>' +
                         '<button type="button" data-acc-id="' + root.id + '" class="btn-del-account px-2 py-1 text-xs font-medium text-rose-600 bg-white hover:bg-rose-50 border border-stone-200 rounded-lg shadow-sm transition">刪除</button>' +
                       '</div>' +
                     '</div>' +
@@ -1288,8 +1265,10 @@
                               '<div class="font-semibold text-stone-800 truncate">└─ ' + c.name + '</div>' +
                             '</div>' +
                             '<div class="flex items-center gap-1 flex-shrink-0">' +
+                              '<button type="button" data-move-up="' + c.id + '" class="btn-move-acc px-1.5 py-0.5 text-stone-500 hover:text-stone-800 rounded border border-stone-200 bg-white text-xs font-bold">↑</button>' +
+                              '<button type="button" data-move-down="' + c.id + '" class="btn-move-acc px-1.5 py-0.5 text-stone-500 hover:text-stone-800 rounded border border-stone-200 bg-white text-xs font-bold">↓</button>' +
                               '<button type="button" data-edit-id="' + c.id + '" class="btn-edit-account px-2 py-0.5 text-xs text-stone-700 bg-white hover:bg-stone-100 border border-stone-200 rounded-md transition ml-1">修改</button>' +
-                              '<button type="button" data-archive-id="' + c.id + '" class="btn-archive-acc px-2 py-0.5 text-xs text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-md transition">封存</button>' +
+                              '<button type="button" data-archive-id="' + c.id + '" class="btn-archive-acc px-2 py-0.5 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-md transition">封存</button>' +
                               '<button type="button" data-acc-id="' + c.id + '" class="btn-del-account px-2 py-0.5 text-xs text-rose-600 bg-white hover:bg-rose-50 border border-stone-200 rounded-md transition">刪除</button>' +
                             '</div>' +
                           '</div>'
@@ -1302,25 +1281,26 @@
           }).join('');
         }
 
-        // 渲染「封存帳戶專區」
+        // 渲染已封存清單
         const archivedAccounts = accounts.filter(a => a.isArchived);
         if (archivedCountBadge) archivedCountBadge.textContent = archivedAccounts.length;
-        if (archivedAccountList) {
+
+        if (modalArchivedAccountList) {
           if (archivedAccounts.length === 0) {
-            archivedAccountList.innerHTML = '<div class="p-4 text-center text-xs text-stone-400 bg-stone-50 rounded-xl border border-stone-200/60">目前沒有封存任何帳戶</div>';
+            modalArchivedAccountList.innerHTML = '<div class="p-3 bg-stone-50 rounded-xl border border-stone-200 text-center text-xs text-stone-400">目前尚無任何封存帳戶</div>';
           } else {
-            archivedAccountList.innerHTML = archivedAccounts.map(acc => {
-              return '<div class="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs flex items-center justify-between gap-2">' +
-                '<div>' +
-                  '<div class="font-bold text-stone-700 flex items-center gap-1.5">' +
-                    '<span>' + acc.name + '</span>' +
-                    '<span class="text-[10px] bg-stone-200 text-stone-600 px-1.5 py-0.2 rounded">' + acc.type + '</span>' +
+            modalArchivedAccountList.innerHTML = archivedAccounts.map(a => {
+              return '<div class="p-3 bg-stone-100/80 rounded-xl border border-dashed border-stone-300 text-xs flex justify-between items-center gap-2">' +
+                '<div class="min-w-0 flex-1">' +
+                  '<div class="flex items-center gap-2">' +
+                    '<span class="font-bold text-stone-700 line-through truncate">' + a.name + '</span>' +
+                    '<span class="text-[10px] bg-stone-200 text-stone-600 px-1.5 py-0.2 rounded font-medium">已封存</span>' +
                   '</div>' +
-                  '<div class="text-[11px] text-stone-400 mt-0.5">' + acc.currency + ' · 封存狀態 (已從日常記帳隱藏)</div>' +
+                  '<div class="text-[10px] text-stone-400 mt-0.5">' + a.type + ' · ' + a.currency + '</div>' +
                 '</div>' +
-                '<div class="flex items-center gap-1.5">' +
-                  '<button type="button" data-unarchive-id="' + acc.id + '" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition text-xs shadow-xs">解除封存</button>' +
-                  '<button type="button" data-acc-id="' + acc.id + '" class="btn-del-account px-2 py-1 text-rose-500 hover:bg-rose-50 rounded border border-stone-200 transition text-xs">永久刪除</button>' +
+                '<div class="flex items-center gap-1.5 flex-shrink-0">' +
+                  '<button type="button" data-unarchive-id="' + a.id + '" class="px-3 py-1 bg-white hover:bg-stone-50 text-stone-700 text-xs font-semibold rounded-lg border border-stone-300 shadow-xs transition">解封啟用</button>' +
+                  '<button type="button" data-acc-id="' + a.id + '" class="btn-del-account px-2 py-1 text-xs text-rose-600 hover:bg-rose-50 rounded transition">永久刪除</button>' +
                 '</div>' +
               '</div>';
             }).join('');
@@ -1345,6 +1325,23 @@
         const temp = accounts[realIndexA];
         accounts[realIndexA] = accounts[realIndexB];
         accounts[realIndexB] = temp;
+
+        saveLocal();
+        renderAll();
+      }
+
+      function toggleArchiveAccount(id, archiveState) {
+        const acc = accounts.find(a => a.id === id);
+        if (!acc) return;
+
+        acc.isArchived = archiveState;
+        // 若為母帳戶封存，則連同所有子卡一起封存/解封
+        accounts.forEach(c => {
+          if (c.parentId === id) c.isArchived = archiveState;
+        });
+
+        // 若當前正在篩選此帳戶，重設為 all
+        if (currentFilterAccountId === id) currentFilterAccountId = 'all';
 
         saveLocal();
         renderAll();
@@ -1413,7 +1410,7 @@
           if (!name) return;
 
           const id = editingAccountIdInput.value || ('acc_' + Date.now());
-          const existing = accounts.find(a => a.id === id);
+          const existingAcc = accounts.find(a => a.id === id);
 
           const newAcc = {
             id: id,
@@ -1423,7 +1420,7 @@
             currency: document.getElementById('accCurrency').value,
             initialBalance: parseFloat(document.getElementById('accInitialBalance').value) || 0,
             includeNetWorth: accIncludeNetWorth.checked,
-            isArchived: existing ? (existing.isArchived || false) : false,
+            isArchived: existingAcc ? existingAcc.isArchived : false,
             creditLimit: accTypeSelect.value === 'credit' ? parseFloat(document.getElementById('accCreditLimit').value) || null : null,
             statementDay: accTypeSelect.value === 'credit' ? parseInt(document.getElementById('accStatementDay').value) || null : null,
             dueDay: accTypeSelect.value === 'credit' ? parseInt(document.getElementById('accDueDay').value) || null : null
@@ -1442,51 +1439,12 @@
         };
       }
 
-      function archiveAccount(id) {
-        const target = accounts.find(a => a.id === id);
-        if (!target) return;
-        if (confirm('確定要封存【' + target.name + '】嗎？\n封存後此卡將從首頁與日常記帳選單中隱藏，但歷史紀錄完全保留，日後隨時可解封。')) {
-          target.isArchived = true;
-          // 若為母帳戶，同時連帶封存子帳戶
-          accounts.forEach(a => {
-            if (a.parentId === id) a.isArchived = true;
-          });
-          saveLocal();
-          renderAll();
-        }
-      }
-
-      function unarchiveAccount(id) {
-        const target = accounts.find(a => a.id === id);
-        if (!target) return;
-        target.isArchived = false;
-        // 若子帳戶解封且母帳戶被封存，則解除所屬母帳戶封存
-        if (target.parentId) {
-          const parent = accounts.find(p => p.id === target.parentId);
-          if (parent) parent.isArchived = false;
-        }
-        saveLocal();
-        renderAll();
-        alert('已解除封存【' + target.name + '】，現已恢復在記帳選單中。');
-      }
-
       function renderTransactionsList() {
         if (!txList) return;
         let filtered = [...transactions];
 
         if (selectedMonth !== 'ALL') {
           filtered = filtered.filter(t => t.date && t.date.startsWith(selectedMonth));
-        }
-
-        const includeArchived = chkIncludeArchivedInTx && chkIncludeArchivedInTx.checked;
-        if (!includeArchived) {
-          const archivedIds = accounts.filter(a => a.isArchived).map(a => a.id);
-          filtered = filtered.filter(t => {
-            if (t.type === 'transfer') {
-              return !archivedIds.includes(t.fromAccountId) && !archivedIds.includes(t.toAccountId);
-            }
-            return !archivedIds.includes(t.accountId);
-          });
         }
 
         if (currentFilterAccountId !== 'all') {
@@ -1514,16 +1472,16 @@
             const fromAcc = accounts.find(a => a.id === t.fromAccountId) || { name: '未知帳戶', currency: 'TWD' };
             const toAcc = accounts.find(a => a.id === t.toAccountId) || { name: '未知帳戶', currency: 'TWD' };
             const hasFee = Number(t.fee || 0) > 0;
-            const isArchivedRel = (fromAcc.isArchived || toAcc.isArchived);
+            const fromArchived = fromAcc.isArchived ? ' [已封存]' : '';
+            const toArchived = toAcc.isArchived ? ' [已封存]' : '';
 
-            return '<li class="py-3 flex items-center justify-between hover:bg-stone-50/60 transition px-2 rounded-xl group bg-indigo-50/20 ' + (isArchivedRel ? 'opacity-70' : '') + '">' +
+            return '<li class="py-3 flex items-center justify-between hover:bg-stone-50/60 transition px-2 rounded-xl group bg-indigo-50/20">' +
               '<div class="flex items-center gap-3">' +
                 '<div class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs">⇄</div>' +
                 '<div>' +
                   '<div class="flex items-center gap-2">' +
                     '<span class="text-xs font-bold text-indigo-900">帳戶互轉</span>' +
-                    '<span class="text-[10px] text-stone-500 bg-stone-100 px-1.5 py-0.5 rounded font-medium">' + fromAcc.name + ' ➔ ' + toAcc.name + '</span>' +
-                    (isArchivedRel ? '<span class="text-[9px] bg-stone-200 text-stone-600 px-1 rounded">含封存戶</span>' : '') +
+                    '<span class="text-[10px] text-stone-500 bg-stone-100 px-1.5 py-0.5 rounded font-medium">' + fromAcc.name + fromArchived + ' ➔ ' + toAcc.name + toArchived + '</span>' +
                     (hasFee ? '<span class="text-[9px] bg-rose-50 text-rose-600 px-1 py-0.2 rounded border border-rose-100">手續費 $' + t.fee + '</span>' : '') +
                   '</div>' +
                   '<div class="text-[11px] text-stone-400 flex items-center gap-2 mt-0.5">' +
@@ -1550,6 +1508,7 @@
             const isRec = t.type === 'receivable';
             const isDismissed = t.debtStatus === 'dismissed';
             const isSettled = t.debtStatus === 'settled';
+            const accArchived = acc.isArchived ? ' [已封存]' : '';
 
             let dueBadge = '';
             if (!isDismissed && !isSettled && t.dueDate) {
@@ -1582,7 +1541,7 @@
                   '<div class="flex items-center gap-2 flex-wrap">' +
                     '<span class="text-xs font-bold ' + (isDismissed ? 'text-stone-600' : 'text-stone-900') + '">' + (isRec ? '應收帳款' : '應付帳款') + '</span>' +
                     (t.debtPerson ? '<span class="text-xs font-semibold text-stone-700 bg-stone-200/80 px-1.5 py-0.2 rounded">' + escapeHtml(t.debtPerson) + '</span>' : '') +
-                    '<span class="text-[10px] text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded">' + acc.name + (acc.isArchived ? ' [已封存]' : '') + '</span>' +
+                    '<span class="text-[10px] text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded">' + acc.name + accArchived + '</span>' +
                     statusBadge +
                     dueBadge +
                   '</div>' +
@@ -1612,14 +1571,15 @@
 
           const acc = accounts.find(a => a.id === t.accountId) || { name: '未知帳戶', currency: 'TWD' };
           const parentAcc = acc.parentId ? accounts.find(a => a.id === acc.parentId) : null;
-          const displayName = (parentAcc ? parentAcc.name + ' ➔ ' + acc.name : acc.name) + (acc.isArchived ? ' [已封存]' : '');
+          const displayName = parentAcc ? parentAcc.name + ' ➔ ' + acc.name : acc.name;
           const isExp = t.type === 'expense';
           const isAdjust = t.isAdjustment || t.category === '餘額調整';
           const isSettleRecord = !!t.settledFromId;
           const hasFee = Number(t.fee || 0) > 0;
           const isShiftedPeriod = t.billPeriodShift === 1;
+          const accArchived = acc.isArchived ? ' [已封存]' : '';
 
-          return '<li class="py-3 flex items-center justify-between hover:bg-stone-50/60 transition px-2 rounded-xl group ' + (isAdjust ? 'bg-amber-50/30' : (isSettleRecord ? 'bg-emerald-50/30' : '')) + (acc.isArchived ? ' opacity-70' : '') + '">' +
+          return '<li class="py-3 flex items-center justify-between hover:bg-stone-50/60 transition px-2 rounded-xl group ' + (isAdjust ? 'bg-amber-50/30' : (isSettleRecord ? 'bg-emerald-50/30' : '')) + '">' +
             '<div class="flex items-center gap-3">' +
               '<div class="w-8 h-8 rounded-xl ' + (isAdjust ? 'bg-amber-100 text-amber-700' : (isSettleRecord ? 'bg-emerald-100 text-emerald-700' : (isExp ? 'bg-rose-50 text-rose-500' : 'bg-emerald-50 text-emerald-600'))) + ' flex items-center justify-center font-bold text-xs">' +
                 (isAdjust ? '⚙️' : (isSettleRecord ? '✓' : (isExp ? '-' : '+'))) +
@@ -1627,7 +1587,7 @@
               '<div>' +
                 '<div class="flex items-center gap-2 flex-wrap">' +
                   '<span class="text-xs font-bold text-stone-800">' + t.category + '</span>' +
-                  '<span class="text-[10px] text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded">' + displayName + '</span>' +
+                  '<span class="text-[10px] text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded">' + displayName + accArchived + '</span>' +
                   (isShiftedPeriod ? '<span class="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.2 rounded font-medium">已移至下期</span>' : '') +
                   (isSettleRecord ? '<span class="text-[9px] bg-emerald-200 text-emerald-800 px-1.5 py-0.2 rounded font-semibold">結清款入帳</span>' : '') +
                   (hasFee ? '<span class="text-[9px] bg-rose-50 text-rose-600 px-1 py-0.2 rounded border border-rose-100">手續費 $' + t.fee + '</span>' : '') +
@@ -1653,13 +1613,6 @@
             '</div>' +
           '</li>';
         }).join('');
-      }
-
-      if (chkIncludeArchivedInTx) {
-        chkIncludeArchivedInTx.onchange = () => {
-          renderAccountOptions();
-          renderTransactionsList();
-        };
       }
 
       function renderDashboardMetrics() {
@@ -1762,9 +1715,9 @@
           }
         }
 
+        // 資產帳戶圖表：排除封存帳戶以及不納入資產的帳戶
         const assetLabels = [];
         const assetData = [];
-        // 資產帳戶分佈圖表：排除封存帳戶與不計總額者
         accounts.filter(a => isRootAccount(a) && !a.isArchived).forEach(a => {
           if (a.includeNetWorth !== false) {
             const children = accounts.filter(c => c.parentId === a.id && !c.isArchived);
@@ -2143,7 +2096,7 @@
         const rootAcc = accounts.find(a => a.id === cardId);
         if (!rootAcc) return;
 
-        const childIds = accounts.filter(a => a.parentId === cardId).map(a => a.id);
+        const childIds = accounts.filter(a => a.parentId === cardId && !a.isArchived).map(a => a.id);
         const cardIds = [cardId, ...childIds];
 
         const cardTitleEl = document.getElementById('reconcileCardTitle');
@@ -2161,204 +2114,93 @@
       }
 
       function renderReconcileList(cardIds) {
-  const reconcileListEl = document.getElementById('reconcileTxList');
-  if (!reconcileListEl) return;
+        const reconcileListEl = document.getElementById('reconcileTxList');
+        if (!reconcileListEl) return;
 
-  const creditTxs = transactions.filter(t => t.type === 'expense' && cardIds.includes(t.accountId));
+        const creditTxs = transactions.filter(t => t.type === 'expense' && cardIds.includes(t.accountId));
 
-  // 1. 計算該卡片（包含母戶與子卡）小於 0 的初始餘額總和（視為前期未結清舊債）
-  let openingDebt = 0;
-  cardIds.forEach(id => {
-    const acc = accounts.find(a => a.id === id);
-    if (acc && Number(acc.initialBalance) < 0) {
-      openingDebt += Math.abs(Number(acc.initialBalance));
-    }
-  });
-
-  // 如果既沒有刷卡紀錄，也沒有前期負債
-  if (creditTxs.length === 0 && openingDebt === 0) {
-    reconcileListEl.innerHTML = '<li class="p-6 text-center text-xs text-stone-400">目前此信用卡尚無任何消費紀錄或前期未結款項</li>';
-    updateReconcileTotals(0, 0);
-    return;
-  }
-
-  // 應繳總額起始值帶入前期負債
-  let totalBill = openingDebt;
-  let checkedBill = openingDebt; // 前期舊帳預設已確認
-
-  let listHtml = '';
-
-  // 若有初始負債，在清單頂部加上一筆「前期未結清餘額」提示項目
-  if (openingDebt > 0) {
-    listHtml += `
-      <li class="p-3 flex items-center justify-between text-xs bg-amber-50/40">
-        <div class="flex items-center gap-3">
-          <span class="text-amber-600 font-bold text-sm">📌</span>
-          <div>
-            <div class="flex items-center gap-1.5">
-              <span class="font-bold text-amber-900">前期未結清餘額 (帳戶初始負債)</span>
-              <span class="text-[10px] bg-amber-100 text-amber-800 px-1 py-0.2 rounded font-medium">開帳餘額</span>
-            </div>
-            <div class="text-[11px] text-stone-400 mt-0.5">系統建立時所帶入之初始結餘</div>
-          </div>
-        </div>
-        <div class="text-right">
-          <span class="font-extrabold text-stone-900">$${openingDebt.toLocaleString()}</span>
-        </div>
-      </li>`;
-  }
-
-  // 接續渲染本期明細
-  listHtml += creditTxs.map(t => {
-    const isShifted = t.billPeriodShift === 1;
-    const isChecked = t.reconciled === true;
-    const amt = Number(t.amount || 0) + Number(t.fee || 0);
-
-    if (!isShifted) {
-      totalBill += amt;
-      if (isChecked) checkedBill += amt;
-    }
-
-    const acc = accounts.find(a => a.id === t.accountId) || { name: '卡片' };
-
-    return '<li class="p-3 flex items-center justify-between text-xs hover:bg-stone-50 transition ' + (isShifted ? 'bg-stone-50/60 opacity-60' : '') + '">' +
-      '<div class="flex items-center gap-3">' +
-        '<input type="checkbox" data-rec-check-id="' + t.id + '" ' + (isChecked ? 'checked' : '') + ' ' + (isShifted ? 'disabled' : '') + ' class="h-4 w-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900/20">' +
-        '<div>' +
-          '<div class="flex items-center gap-1.5">' +
-            '<span class="font-bold ' + (isChecked ? 'text-emerald-700 line-through' : 'text-stone-800') + '">' + t.category + '</span>' +
-            '<span class="text-[10px] text-stone-400 bg-stone-100 px-1 py-0.2 rounded">' + acc.name + '</span>' +
-            (isShifted ? '<span class="text-[10px] text-purple-600 font-medium bg-purple-50 px-1.5 py-0.2 rounded border border-purple-100">已算到下期</span>' : '') +
-          '</div>' +
-          '<div class="text-[11px] text-stone-400 mt-0.5">' + t.date + (t.note ? ' · ' + escapeHtml(t.note) : '') + '</div>' +
-        '</div>' +
-      '</div>' +
-      '<div class="flex items-center gap-3">' +
-        '<span class="font-extrabold ' + (isChecked ? 'text-emerald-600' : 'text-stone-900') + '">$' + amt.toLocaleString() + '</span>' +
-        '<button type="button" data-toggle-shift-id="' + t.id + '" class="px-2 py-1 text-[11px] font-medium rounded border border-stone-200 bg-white hover:bg-stone-100 text-stone-600 transition">' +
-          (isShifted ? '移回本期' : '移至下期 ➔') +
-        '</button>' +
-      '</div>' +
-    '</li>';
-  }).join('');
-
-  reconcileListEl.innerHTML = listHtml;
-  updateReconcileTotals(totalBill, checkedBill);
-}
-
-      // 發送信用卡帳單 Email 提醒通知邏輯
-      const btnSendBillEmail = document.getElementById('btnSendBillEmail');
-      if (btnSendBillEmail) {
-        btnSendBillEmail.onclick = () => {
-          if (!reconcilingCardId) return;
-          const rootAcc = accounts.find(a => a.id === reconcilingCardId);
-          if (!rootAcc) return;
-
-          const totalText = document.getElementById('reconcileTotalAmount').textContent;
-          const checkedText = document.getElementById('reconcileCheckedAmount').textContent;
-          const dueDay = rootAcc.dueDay ? ('每月 ' + rootAcc.dueDay + ' 號') : '請查閱銀行帳單';
-
-          const childIds = accounts.filter(a => a.parentId === reconcilingCardId).map(a => a.id);
-          const cardIds = [reconcilingCardId, ...childIds];
-          const creditTxs = transactions.filter(t => t.type === 'expense' && cardIds.includes(t.accountId) && t.billPeriodShift !== 1);
-
-          let itemListText = creditTxs.map(t => {
-            const acc = accounts.find(a => a.id === t.accountId) || { name: '卡片' };
-            const status = t.reconciled ? '【已核對】' : '【待核對】';
-            return `${t.date} | ${t.category} (${acc.name}) | $${(Number(t.amount)+Number(t.fee||0)).toLocaleString()} ${status} ${t.note ? '· ' + t.note : ''}`;
-          }).join('\n');
-
-          const subject = `【帳單繳費提醒】${rootAcc.name} 本期應繳：${totalText}`;
-          const body = `您好：\n\n這是來自【極簡資產記帳本】為您整理的信用卡帳單對帳備忘：\n` +
-            `-----------------------------------------\n` +
-            `卡片名稱：${rootAcc.name}\n` +
-            `本期應繳總額：${totalText}\n` +
-            `已核對金額：${checkedText}\n` +
-            `預計繳款截止日：${dueDay}\n` +
-            `-----------------------------------------\n` +
-            `本期消費明細列表：\n${itemListText || '(尚無消費紀錄)'}\n\n` +
-            `記得於繳款日前完成轉帳或扣款，避免產生循環利息！\n記帳本時間：${new Date().toLocaleString()}`;
-
-          // 判斷發信模式
-          if (emailConfig.mode === 'emailjs' && emailConfig.serviceId && emailConfig.templateId && emailConfig.publicKey) {
-            try {
-              emailjs.init(emailConfig.publicKey);
-              emailjs.send(emailConfig.serviceId, emailConfig.templateId, {
-                to_email: emailConfig.email,
-                card_name: rootAcc.name,
-                total_amount: totalText,
-                due_date: dueDay,
-                details: body
-              }).then(() => {
-                alert('已透過 EmailJS 雲端自動寄出通知信！');
-              }).catch(err => {
-                alert('EmailJS 發送失敗: ' + JSON.stringify(err) + '\n將改以本機郵件軟體開啟。');
-                openMailto(subject, body);
-              });
-            } catch (err) {
-              openMailto(subject, body);
-            }
-          } else {
-            openMailto(subject, body);
+        // 1. 核心修復：計算該卡片（包含母卡與所屬子卡）小於 0 的初始結餘（視為前期未結清帳單舊債）
+        let openingDebt = 0;
+        cardIds.forEach(id => {
+          const acc = accounts.find(a => a.id === id);
+          if (acc && Number(acc.initialBalance || 0) < 0) {
+            openingDebt += Math.abs(Number(acc.initialBalance));
           }
-        };
+        });
+
+        if (creditTxs.length === 0 && openingDebt === 0) {
+          reconcileListEl.innerHTML = '<li class="p-6 text-center text-xs text-stone-400">目前此信用卡尚無任何消費紀錄或前期未結款項</li>';
+          updateReconcileTotals(0, 0);
+          return;
+        }
+
+        let totalBill = openingDebt;
+        let checkedBill = openingDebt; // 開帳初始負餘額預設計入核對項目
+
+        let listHtml = '';
+
+        // 若有開帳前期未結清負債，優先置頂呈現為專屬核對項目
+        if (openingDebt > 0) {
+          listHtml += '<li class="p-3 flex items-center justify-between text-xs bg-amber-50/50 border-b border-amber-100/60">' +
+            '<div class="flex items-center gap-2.5 sm:gap-3">' +
+              '<span class="text-amber-600 font-bold text-sm shrink-0">📌</span>' +
+              '<div>' +
+                '<div class="flex items-center gap-1.5 flex-wrap">' +
+                  '<span class="font-bold text-stone-800">前期未結清餘額 (開帳初始負債)</span>' +
+                  '<span class="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded font-medium">期初餘額</span>' +
+                '</div>' +
+                '<div class="text-[11px] text-stone-400 mt-0.5">系統開帳設定時所帶入之信用卡前期應繳款</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="text-right shrink-0">' +
+              '<span class="font-extrabold text-stone-900 text-sm">$' + openingDebt.toLocaleString() + '</span>' +
+              '<div class="text-[10px] text-emerald-600 font-medium">已納入應繳</div>' +
+            '</div>' +
+          '</li>';
+        }
+
+        listHtml += creditTxs.map(t => {
+          const isShifted = t.billPeriodShift === 1;
+          const isChecked = t.reconciled === true;
+          const amt = Number(t.amount || 0) + Number(t.fee || 0);
+
+          if (!isShifted) {
+            totalBill += amt;
+            if (isChecked) checkedBill += amt;
+          }
+
+          const acc = accounts.find(a => a.id === t.accountId) || { name: '卡片' };
+
+          return '<li class="p-3 flex items-center justify-between text-xs hover:bg-stone-50 transition ' + (isShifted ? 'bg-stone-50/60 opacity-60' : '') + '">' +
+            '<div class="flex items-center gap-2.5 sm:gap-3 min-w-0 pr-2">' +
+              '<input type="checkbox" data-rec-check-id="' + t.id + '" ' + (isChecked ? 'checked' : '') + ' ' + (isShifted ? 'disabled' : '') + ' class="h-4 w-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900/20 shrink-0">' +
+              '<div class="min-w-0">' +
+                '<div class="flex items-center gap-1.5 flex-wrap">' +
+                  '<span class="font-bold ' + (isChecked ? 'text-emerald-700 line-through' : 'text-stone-800') + '">' + t.category + '</span>' +
+                  '<span class="text-[10px] text-stone-400 bg-stone-100 px-1 py-0.2 rounded">' + acc.name + '</span>' +
+                  (isShifted ? '<span class="text-[10px] text-purple-600 font-medium bg-purple-50 px-1.5 py-0.2 rounded border border-purple-100">已算到下期</span>' : '') +
+                '</div>' +
+                '<div class="text-[11px] text-stone-400 mt-0.5 truncate">' + t.date + (t.note ? ' · ' + escapeHtml(t.note) : '') + '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="flex items-center gap-2 shrink-0">' +
+              '<span class="font-extrabold ' + (isChecked ? 'text-emerald-600' : 'text-stone-900') + '">$' + amt.toLocaleString() + '</span>' +
+              '<button type="button" data-toggle-shift-id="' + t.id + '" class="px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded border border-stone-200 bg-white hover:bg-stone-100 text-stone-600 transition" title="切換本期或移至下期">' +
+                (isShifted ? '移回' : '下期 ➔') +
+              '</button>' +
+            '</div>' +
+          '</li>';
+        }).join('');
+
+        reconcileListEl.innerHTML = listHtml;
+        updateReconcileTotals(totalBill, checkedBill);
       }
 
-      function openMailto(subject, body) {
-        const toEmail = emailConfig.email || '';
-        const mailtoUri = `mailto:${encodeURIComponent(toEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        window.location.href = mailtoUri;
-      }
-
-      // Email 設定彈窗
-      const openEmailSettingBtn = document.getElementById('openEmailSettingBtn');
-      const closeEmailSettingBtn = document.getElementById('closeEmailSettingBtn');
-      const cfgEmailAddress = document.getElementById('cfgEmailAddress');
-      const cfgEmailMode = document.getElementById('cfgEmailMode');
-      const emailJsFields = document.getElementById('emailJsFields');
-      const cfgEmailJsService = document.getElementById('cfgEmailJsService');
-      const cfgEmailJsTemplate = document.getElementById('cfgEmailJsTemplate');
-      const cfgEmailJsPublicKey = document.getElementById('cfgEmailJsPublicKey');
-
-      if (openEmailSettingBtn) {
-        openEmailSettingBtn.onclick = () => {
-          if (cfgEmailAddress) cfgEmailAddress.value = emailConfig.email || '';
-          if (cfgEmailMode) cfgEmailMode.value = emailConfig.mode || 'mailto';
-          if (cfgEmailJsService) cfgEmailJsService.value = emailConfig.serviceId || '';
-          if (cfgEmailJsTemplate) cfgEmailJsTemplate.value = emailConfig.templateId || '';
-          if (cfgEmailJsPublicKey) cfgEmailJsPublicKey.value = emailConfig.publicKey || '';
-          if (emailJsFields) emailJsFields.classList.toggle('hidden', (emailConfig.mode || 'mailto') !== 'emailjs');
-          if (emailSettingModal) emailSettingModal.classList.remove('hidden');
-        };
-      }
-
-      if (closeEmailSettingBtn) {
-        closeEmailSettingBtn.onclick = () => {
-          if (emailSettingModal) emailSettingModal.classList.add('hidden');
-        };
-      }
-
-      if (cfgEmailMode) {
-        cfgEmailMode.onchange = (e) => {
-          if (emailJsFields) emailJsFields.classList.toggle('hidden', e.target.value !== 'emailjs');
-        };
-      }
-
-      if (emailSettingForm) {
-        emailSettingForm.onsubmit = (e) => {
-          e.preventDefault();
-          emailConfig = {
-            email: cfgEmailAddress.value.trim(),
-            mode: cfgEmailMode.value,
-            serviceId: cfgEmailJsService.value.trim(),
-            templateId: cfgEmailJsTemplate.value.trim(),
-            publicKey: cfgEmailJsPublicKey.value.trim()
-          };
-          localStorage.setItem('my_tracker_email_cfg', JSON.stringify(emailConfig));
-          syncToCloud();
-          if (emailSettingModal) emailSettingModal.classList.add('hidden');
-          alert('提醒設定儲存成功！');
-        };
+      function updateReconcileTotals(total, checked) {
+        const totalEl = document.getElementById('reconcileTotalAmount');
+        const checkedEl = document.getElementById('reconcileCheckedAmount');
+        if (totalEl) totalEl.textContent = '$' + total.toLocaleString();
+        if (checkedEl) checkedEl.textContent = '$' + checked.toLocaleString();
       }
 
       const btnOpenPayModal = document.getElementById('btnOpenPayModal');
@@ -2382,6 +2224,24 @@
           document.getElementById('creditPayNote').value = '繳納 ' + rootAcc.name + ' 本期卡費';
 
           if (creditPayModal) creditPayModal.classList.remove('hidden');
+        };
+      }
+
+      // 綁定手機專屬懸浮記一筆按鈕 (FAB)
+      const mobileFabBtn = document.getElementById('mobileFabBtn');
+      if (mobileFabBtn) {
+        mobileFabBtn.onclick = () => {
+          resetTxForm();
+          if (txModal) txModal.classList.remove('hidden');
+          setTimeout(() => { if (txAmount) txAmount.focus(); }, 100);
+        };
+      }
+
+      // 綁定手機版導航列登入按鈕
+      const btnMobileLogin = document.getElementById('btnMobileLogin');
+      if (btnMobileLogin) {
+        btnMobileLogin.onclick = () => {
+          if (btnLoginGoogle) btnLoginGoogle.click();
         };
       }
 
@@ -2445,8 +2305,7 @@
             exportedAt: new Date().toISOString(),
             accounts: accounts,
             transactions: transactions,
-            categories: categories,
-            emailConfig: emailConfig
+            categories: categories
           };
           const jsonStr = JSON.stringify(backupData, null, 2);
           const blob = new Blob([jsonStr], { type: 'application/json' });
@@ -2475,9 +2334,12 @@
               }
               if (confirm('確定要還原此備份檔案嗎？現有資料將會被備份檔內容完全替換！')) {
                 accounts = data.accounts;
+                accounts.forEach(a => {
+                  if (typeof a.includeNetWorth === 'undefined') a.includeNetWorth = true;
+                  if (typeof a.isArchived === 'undefined') a.isArchived = false;
+                });
                 transactions = data.transactions || [];
                 categories = data.categories || DEFAULT_CATEGORIES;
-                if (data.emailConfig) emailConfig = data.emailConfig;
                 saveLocal();
                 renderAll();
                 if (backupModal) backupModal.classList.add('hidden');
@@ -2552,7 +2414,6 @@
         localStorage.setItem('my_tracker_accounts', JSON.stringify(accounts));
         localStorage.setItem('my_tracker_txs', JSON.stringify(transactions));
         localStorage.setItem('my_tracker_categories', JSON.stringify(categories));
-        localStorage.setItem('my_tracker_email_cfg', JSON.stringify(emailConfig));
         syncToCloud();
       }
 
@@ -2565,8 +2426,9 @@
       }
 
       function deleteAccount(id) {
-        if (accounts.length <= 1) {
-          alert('請至少保留一個帳戶！');
+        const activeCount = accounts.filter(a => !a.isArchived).length;
+        if (activeCount <= 1 && !accounts.find(a => a.id === id)?.isArchived) {
+          alert('請至少保留一個活躍帳戶！');
           return;
         }
         const updatedAccounts = accounts.map(a => {
@@ -2624,19 +2486,23 @@
 
         const archiveBtn = e.target.closest('.btn-archive-acc');
         if (archiveBtn) {
-          archiveAccount(archiveBtn.getAttribute('data-archive-id'));
+          const accId = archiveBtn.getAttribute('data-archive-id');
+          if (confirm('確定要封存此帳戶嗎？封存後將不再顯示於卡片列與記帳下拉選單中，但歷史紀錄會完整保留。')) {
+            toggleArchiveAccount(accId, true);
+          }
           return;
         }
 
         const unarchiveBtn = e.target.closest('[data-unarchive-id]');
         if (unarchiveBtn) {
-          unarchiveAccount(unarchiveBtn.getAttribute('data-unarchive-id'));
+          const accId = unarchiveBtn.getAttribute('data-unarchive-id');
+          toggleArchiveAccount(accId, false);
           return;
         }
 
         const delAccBtn = e.target.closest('.btn-del-account');
         if (delAccBtn) {
-          if (confirm('確定要永久刪除此帳戶嗎？（若僅是不再使用，建議改用「封存」功能以保留過往歷史帳務）')) {
+          if (confirm('確定要刪除此帳戶嗎？（注意：若只想暫時不使用，建議點擊「封存」；若為母帳戶，子卡將自動轉為獨立卡片）')) {
             deleteAccount(delAccBtn.getAttribute('data-acc-id'));
           }
           return;
@@ -2675,7 +2541,7 @@
             saveLocal();
             renderAll();
             if (reconcilingCardId) {
-              const childIds = accounts.filter(a => a.parentId === reconcilingCardId).map(a => a.id);
+              const childIds = accounts.filter(a => a.parentId === reconcilingCardId && !a.isArchived).map(a => a.id);
               renderReconcileList([reconcilingCardId, ...childIds]);
             }
           }
@@ -2697,7 +2563,7 @@
             tx.reconciled = e.target.checked;
             saveLocal();
             if (reconcilingCardId) {
-              const childIds = accounts.filter(a => a.parentId === reconcilingCardId).map(a => a.id);
+              const childIds = accounts.filter(a => a.parentId === reconcilingCardId && !a.isArchived).map(a => a.id);
               renderReconcileList([reconcilingCardId, ...childIds]);
             }
           }
@@ -2803,43 +2669,26 @@
         };
       }
 
-      // 匯出 CSV：支援匯出是否含封存帳戶資訊
       const exportCsvBtn = document.getElementById('exportCsvBtn');
       if (exportCsvBtn) {
         exportCsvBtn.onclick = () => {
-          let listToExport = [...transactions];
-          const includeArchived = chkIncludeArchivedInTx && chkIncludeArchivedInTx.checked;
-          if (!includeArchived) {
-            const archivedIds = accounts.filter(a => a.isArchived).map(a => a.id);
-            listToExport = listToExport.filter(t => {
-              if (t.type === 'transfer') {
-                return !archivedIds.includes(t.fromAccountId) && !archivedIds.includes(t.toAccountId);
-              }
-              return !archivedIds.includes(t.accountId);
-            });
-          }
-
-          if (listToExport.length === 0) {
+          if (transactions.length === 0) {
             alert('目前無明細可供匯出');
             return;
           }
-
-          let csv = '\uFEFF日期,類型,帳戶/轉出,轉入帳戶,帳戶狀態,借貸對象,到期日,借貸狀態,幣別,金額,手續費,分類,備註\n';
-          listToExport.forEach(t => {
+          let csv = '\uFEFF日期,類型,帳戶/轉出,轉入帳戶,借貸對象,到期日,借貸狀態,幣別,金額,手續費,分類,備註\n';
+          transactions.forEach(t => {
             if (t.type === 'transfer') {
               const fromAcc = accounts.find(a => a.id === t.fromAccountId) || { name: '未知', currency: 'TWD' };
               const toAcc = accounts.find(a => a.id === t.toAccountId) || { name: '未知' };
-              const accStatus = (fromAcc.isArchived || toAcc.isArchived) ? '含封存戶' : '正常活躍';
-              csv += `"${t.date}","轉帳","${fromAcc.name}","${toAcc.name}","${accStatus}","-","-","-","${fromAcc.currency}","${t.amount}","${t.fee || 0}","內部轉帳","${(t.note || '').replace(/"/g, '""')}"\n`;
+              csv += '"' + t.date + '","轉帳","' + fromAcc.name + '","' + toAcc.name + '","-","-","-","' + fromAcc.currency + '","' + t.amount + '","' + (t.fee || 0) + '","內部轉帳","' + (t.note || '').replace(/"/g, '""') + '"\n';
             } else if (t.type === 'receivable' || t.type === 'payable') {
               const acc = accounts.find(a => a.id === t.accountId) || { name: '未知', currency: 'TWD' };
-              const accStatus = acc.isArchived ? '已封存' : '正常活躍';
               const statusStr = t.debtStatus === 'dismissed' ? '已放棄追蹤' : (t.debtStatus === 'settled' ? '已結清' : '待結算');
-              csv += `"${t.date}","${t.type === 'receivable' ? '應收帳款' : '應付帳款'}","${acc.name}","-","${accStatus}","${t.debtPerson || '-'}","${t.dueDate || '-'}","${statusStr}","${acc.currency}","${t.amount}","0","${t.category}","${(t.note || '').replace(/"/g, '""')}"\n`;
+              csv += '"' + t.date + '","' + (t.type === 'receivable' ? '應收帳款' : '應付帳款') + '","' + acc.name + '","-","' + (t.debtPerson || '-') + '","' + (t.dueDate || '-') + '","' + statusStr + '","' + acc.currency + '","' + t.amount + '","0","' + t.category + '","' + (t.note || '').replace(/"/g, '""') + '"\n';
             } else {
               const acc = accounts.find(a => a.id === t.accountId) || { name: '未知', currency: 'TWD' };
-              const accStatus = acc.isArchived ? '已封存' : '正常活躍';
-              csv += `"${t.date}","${t.type === 'expense' ? '支出' : '收入'}","${acc.name}","-","${accStatus}","-","-","-","${acc.currency}","${t.amount}","${t.fee || 0}","${t.category}","${(t.note || '').replace(/"/g, '""')}"\n`;
+              csv += '"' + t.date + '","' + (t.type === 'expense' ? '支出' : '收入') + '","' + acc.name + '","-","-","-","-","' + acc.currency + '","' + t.amount + '","' + (t.fee || 0) + '","' + t.category + '","' + (t.note || '').replace(/"/g, '""') + '"\n';
             }
           });
 
@@ -2866,7 +2715,6 @@
           if (creditReconcileModal) creditReconcileModal.classList.add('hidden');
           if (creditPayModal) creditPayModal.classList.add('hidden');
           if (backupModal) backupModal.classList.add('hidden');
-          if (emailSettingModal) emailSettingModal.classList.add('hidden');
           return;
         }
 
