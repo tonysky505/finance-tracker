@@ -2161,62 +2161,90 @@
       }
 
       function renderReconcileList(cardIds) {
-        const reconcileListEl = document.getElementById('reconcileTxList');
-        if (!reconcileListEl) return;
+  const reconcileListEl = document.getElementById('reconcileTxList');
+  if (!reconcileListEl) return;
 
-        const creditTxs = transactions.filter(t => t.type === 'expense' && cardIds.includes(t.accountId));
+  const creditTxs = transactions.filter(t => t.type === 'expense' && cardIds.includes(t.accountId));
 
-        if (creditTxs.length === 0) {
-          reconcileListEl.innerHTML = '<li class="p-6 text-center text-xs text-stone-400">目前此信用卡尚無任何消費紀錄</li>';
-          updateReconcileTotals(0, 0);
-          return;
-        }
+  // 1. 計算該卡片（包含母戶與子卡）小於 0 的初始餘額總和（視為前期未結清舊債）
+  let openingDebt = 0;
+  cardIds.forEach(id => {
+    const acc = accounts.find(a => a.id === id);
+    if (acc && Number(acc.initialBalance) < 0) {
+      openingDebt += Math.abs(Number(acc.initialBalance));
+    }
+  });
 
-        let totalBill = 0;
-        let checkedBill = 0;
+  // 如果既沒有刷卡紀錄，也沒有前期負債
+  if (creditTxs.length === 0 && openingDebt === 0) {
+    reconcileListEl.innerHTML = '<li class="p-6 text-center text-xs text-stone-400">目前此信用卡尚無任何消費紀錄或前期未結款項</li>';
+    updateReconcileTotals(0, 0);
+    return;
+  }
 
-        reconcileListEl.innerHTML = creditTxs.map(t => {
-          const isShifted = t.billPeriodShift === 1;
-          const isChecked = t.reconciled === true;
-          const amt = Number(t.amount || 0) + Number(t.fee || 0);
+  // 應繳總額起始值帶入前期負債
+  let totalBill = openingDebt;
+  let checkedBill = openingDebt; // 前期舊帳預設已確認
 
-          if (!isShifted) {
-            totalBill += amt;
-            if (isChecked) checkedBill += amt;
-          }
+  let listHtml = '';
 
-          const acc = accounts.find(a => a.id === t.accountId) || { name: '卡片' };
+  // 若有初始負債，在清單頂部加上一筆「前期未結清餘額」提示項目
+  if (openingDebt > 0) {
+    listHtml += `
+      <li class="p-3 flex items-center justify-between text-xs bg-amber-50/40">
+        <div class="flex items-center gap-3">
+          <span class="text-amber-600 font-bold text-sm">📌</span>
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span class="font-bold text-amber-900">前期未結清餘額 (帳戶初始負債)</span>
+              <span class="text-[10px] bg-amber-100 text-amber-800 px-1 py-0.2 rounded font-medium">開帳餘額</span>
+            </div>
+            <div class="text-[11px] text-stone-400 mt-0.5">系統建立時所帶入之初始結餘</div>
+          </div>
+        </div>
+        <div class="text-right">
+          <span class="font-extrabold text-stone-900">$${openingDebt.toLocaleString()}</span>
+        </div>
+      </li>`;
+  }
 
-          return '<li class="p-3 flex items-center justify-between text-xs hover:bg-stone-50 transition ' + (isShifted ? 'bg-stone-50/60 opacity-60' : '') + '">' +
-            '<div class="flex items-center gap-3">' +
-              '<input type="checkbox" data-rec-check-id="' + t.id + '" ' + (isChecked ? 'checked' : '') + ' ' + (isShifted ? 'disabled' : '') + ' class="h-4 w-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900/20">' +
-              '<div>' +
-                '<div class="flex items-center gap-1.5">' +
-                  '<span class="font-bold ' + (isChecked ? 'text-emerald-700 line-through' : 'text-stone-800') + '">' + t.category + '</span>' +
-                  '<span class="text-[10px] text-stone-400 bg-stone-100 px-1 py-0.2 rounded">' + acc.name + '</span>' +
-                  (isShifted ? '<span class="text-[10px] text-purple-600 font-medium bg-purple-50 px-1.5 py-0.2 rounded border border-purple-100">已算到下期</span>' : '') +
-                '</div>' +
-                '<div class="text-[11px] text-stone-400 mt-0.5">' + t.date + (t.note ? ' · ' + escapeHtml(t.note) : '') + '</div>' +
-              '</div>' +
-            '</div>' +
-            '<div class="flex items-center gap-3">' +
-              '<span class="font-extrabold ' + (isChecked ? 'text-emerald-600' : 'text-stone-900') + '">$' + amt.toLocaleString() + '</span>' +
-              '<button type="button" data-toggle-shift-id="' + t.id + '" class="px-2 py-1 text-[11px] font-medium rounded border border-stone-200 bg-white hover:bg-stone-100 text-stone-600 transition">' +
-                (isShifted ? '移回本期' : '移至下期 ➔') +
-              '</button>' +
-            '</div>' +
-          '</li>';
-        }).join('');
+  // 接續渲染本期明細
+  listHtml += creditTxs.map(t => {
+    const isShifted = t.billPeriodShift === 1;
+    const isChecked = t.reconciled === true;
+    const amt = Number(t.amount || 0) + Number(t.fee || 0);
 
-        updateReconcileTotals(totalBill, checkedBill);
-      }
+    if (!isShifted) {
+      totalBill += amt;
+      if (isChecked) checkedBill += amt;
+    }
 
-      function updateReconcileTotals(total, checked) {
-        const totalEl = document.getElementById('reconcileTotalAmount');
-        const checkedEl = document.getElementById('reconcileCheckedAmount');
-        if (totalEl) totalEl.textContent = '$' + total.toLocaleString();
-        if (checkedEl) checkedEl.textContent = '$' + checked.toLocaleString();
-      }
+    const acc = accounts.find(a => a.id === t.accountId) || { name: '卡片' };
+
+    return '<li class="p-3 flex items-center justify-between text-xs hover:bg-stone-50 transition ' + (isShifted ? 'bg-stone-50/60 opacity-60' : '') + '">' +
+      '<div class="flex items-center gap-3">' +
+        '<input type="checkbox" data-rec-check-id="' + t.id + '" ' + (isChecked ? 'checked' : '') + ' ' + (isShifted ? 'disabled' : '') + ' class="h-4 w-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900/20">' +
+        '<div>' +
+          '<div class="flex items-center gap-1.5">' +
+            '<span class="font-bold ' + (isChecked ? 'text-emerald-700 line-through' : 'text-stone-800') + '">' + t.category + '</span>' +
+            '<span class="text-[10px] text-stone-400 bg-stone-100 px-1 py-0.2 rounded">' + acc.name + '</span>' +
+            (isShifted ? '<span class="text-[10px] text-purple-600 font-medium bg-purple-50 px-1.5 py-0.2 rounded border border-purple-100">已算到下期</span>' : '') +
+          '</div>' +
+          '<div class="text-[11px] text-stone-400 mt-0.5">' + t.date + (t.note ? ' · ' + escapeHtml(t.note) : '') + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="flex items-center gap-3">' +
+        '<span class="font-extrabold ' + (isChecked ? 'text-emerald-600' : 'text-stone-900') + '">$' + amt.toLocaleString() + '</span>' +
+        '<button type="button" data-toggle-shift-id="' + t.id + '" class="px-2 py-1 text-[11px] font-medium rounded border border-stone-200 bg-white hover:bg-stone-100 text-stone-600 transition">' +
+          (isShifted ? '移回本期' : '移至下期 ➔') +
+        '</button>' +
+      '</div>' +
+    '</li>';
+  }).join('');
+
+  reconcileListEl.innerHTML = listHtml;
+  updateReconcileTotals(totalBill, checkedBill);
+}
 
       // 發送信用卡帳單 Email 提醒通知邏輯
       const btnSendBillEmail = document.getElementById('btnSendBillEmail');
